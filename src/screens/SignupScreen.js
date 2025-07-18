@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-     import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
+     import { View, Text, TextInput, ScrollView, StyleSheet, Alert } from 'react-native';
      import { Button } from 'react-native-paper';
      import CountryPicker from 'react-native-country-picker-modal';
      import RadioGroup from 'react-native-radio-buttons-group';
+     import { supabase } from '../services/supabase';
 
      export default function SignupScreen({ navigation }) {
        const [email, setEmail] = useState('');
@@ -15,6 +16,49 @@ import React, { useState } from 'react';
          { id: 'jobseeker', label: 'Job Seeker', value: 'jobseeker' },
          { id: 'employer', label: 'Employer', value: 'employer' },
        ];
+
+       const handleSignup = async () => {
+         // Basic validation
+         if (!email || !phone || !password) {
+           Alert.alert('Error', 'Please fill all required fields');
+           return;
+         }
+
+         // Check for existing user by email or phone
+         const { data: existingUsers, error: checkError } = await supabase
+           .from('users')
+           .select('email, phone')
+           .or(`email.eq.${email},phone.eq.${phone}`);
+         if (checkError) {
+           Alert.alert('Error', 'Error checking existing users');
+           return;
+         }
+         if (existingUsers.length > 0) {
+           Alert.alert('Error', 'Email or phone already registered');
+           return;
+         }
+
+         // Signup with Supabase Auth
+         const { data, error } = await supabase.auth.signUp({
+           email,
+           password,
+           options: {
+             data: { phone: `+${countryCode}${phone}`, role }, // Store phone and role in user metadata
+           },
+         });
+
+         if (error) {
+           Alert.alert('Error', error.message);
+         } else {
+           Alert.alert('Success', 'Successfully Signed Up! Please check your email for verification.');
+           // Navigate to role-based profile screen (placeholders for now)
+           if (role === 'jobseeker') {
+             navigation.navigate('JobSeekerProfile');
+           } else {
+             navigation.navigate('EmployerProfile');
+           }
+         }
+       };
 
        return (
          <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -39,7 +83,7 @@ import React, { useState } from 'react';
                  withFilter
                  withFlag
                  countryCode={countryCode}
-                 withCountryNameButton={false} // Keep only flag
+                 withCountryNameButton={false}
                  onSelect={(country) => setCountryCode(country.cca2)}
                />
                <TextInput
@@ -61,7 +105,7 @@ import React, { useState } from 'react';
              <Button
                mode="contained"
                style={styles.button}
-               onPress={() => {}}
+               onPress={handleSignup}
                accessibilityLabel="Sign up for CazzyJobs"
              >
                Sign Up
@@ -84,7 +128,7 @@ import React, { useState } from 'react';
        },
        container: {
          padding: 16,
-         backgroundColor: '#ggg',
+         backgroundColor: '#f5f5f5',
        },
        phoneContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
        phoneInput: { flex: 1, height: 40, borderColor: '#ccc', borderWidth: 1, padding: 8, borderRadius: 4 },

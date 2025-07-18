@@ -1,37 +1,38 @@
 {
-       "expo": {
-         "name": "cazzyjobs",
-         "slug": "cazzyjobs",
-         "version": "1.0.0",
-         "orientation": "portrait",
-         "icon": "./assets/icon.png",
-         "userInterfaceStyle": "light",
-         "splash": {
-           "image": "./assets/splash.png",
-           "resizeMode": "contain",
-           "backgroundColor": "#ffffff"
-         },
-         "updates": {
-           "fallbackToCacheTimeout": 0
-         },
-         "assetBundlePatterns": [
-           "**/*"
-         ],
-         "ios": {
-           "supportsTablet": true
-         },
-         "android": {
-           "adaptiveIcon": {
-             "foregroundImage": "./assets/adaptive-icon.png",
-             "backgroundColor": "#FFFFFF"
-           }
-         },
-         "web": {
-           "favicon": "./assets/favicon.png"
-         },
-         "extra": {
-           "SUPABASE_URL": "https://tibdaygeycdxxvesoupi.supabase.co",
-           "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYmRheWdleWNkeHh2ZXNvdXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NDI2OTksImV4cCI6MjA2ODMxODY5OX0.rCh33yAKwzPg-X2BKhrgg7pnPzfvCGb8xiAHDo-GLYA"
-         }
-       }
-     }
+    "expo": {
+      "name": "cazzyjobs",
+      "slug": "cazzyjobs",
+      "version": "1.0.0",
+      "orientation": "portrait",
+      "icon": "./assets/icon.png",
+      "userInterfaceStyle": "light",
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      },
+      "updates": {
+        "fallbackToCacheTimeout": 0
+      },
+      "assetBundlePatterns": [
+        "**/*"
+      ],
+      "ios": {
+        "supportsTablet": true
+      },
+      "android": {
+        "adaptiveIcon": {
+          "foregroundImage": "./assets/adaptive-icon.png",
+          "backgroundColor": "#FFFFFF"
+        }
+      },
+      "web": {
+        "favicon": "./assets/favicon.png"
+      },
+      "extra": {
+        "SUPABASE_URL": "https://tibdaygeycdxxvesoupi.supabase.co",
+        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpYmRheWexeWNkeHh2ZXNvdXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NDI2OTksImV4cCI6MjA2ODMxODY5OX0.rCh33yAKwzPg-X2BKhrgg7pnPzfvCGb8xiAHDo-GLYA"
+      },
+      "jsEngine": "jsc"
+    }
+  }
