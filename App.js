@@ -1,5 +1,5 @@
-import WelcomeScreen from './src/screens/WelcomeScreen';
+import AppNavigator from './src/navigation/AppNavigator';
 
-   export default function App() {
-     return <WelcomeScreen />;
-   }
+     export default function App() {
+       return <AppNavigator />;
+     }
