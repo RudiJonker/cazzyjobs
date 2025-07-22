@@ -1,7 +1,8 @@
-// src/screens/AuthScreen.js
 import React, { useState } from 'react';
-import { View, TextInput, Button, Text, StyleSheet } from 'react-native';
-import { supabase } from '../supabase';
+import { View, StyleSheet } from 'react-native';
+import { TextInput, Button, HelperText } from 'react-native-paper';
+import { supabase } from '../services/supabase';
+import { theme } from '../themes/theme';
 
 export default function AuthScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -19,8 +20,8 @@ export default function AuthScreen({ navigation }) {
 
     const { data, error } = await supabase.auth.signUp({
       email,
-      password: 'temporary_password', // Adjust based on your auth flow
       phone,
+      password: 'temporary_password', // Replace with password input if needed
     });
 
     if (error) {
@@ -28,7 +29,6 @@ export default function AuthScreen({ navigation }) {
       return;
     }
 
-    // Insert user into users table with role and phone
     const { error: profileError } = await supabase
       .from('users')
       .insert([{ auth_users_id: data.user.id, role, phone }]);
@@ -38,38 +38,55 @@ export default function AuthScreen({ navigation }) {
       return;
     }
 
-    navigation.navigate('ProfileScreen', { role });
+    navigation.navigate(role === 'job_seeker' ? 'JobSeekerProfile' : 'EmployerProfile', { role });
   };
 
   return (
     <View style={styles.container}>
       <TextInput
-        style={styles.input}
-        placeholder="Email"
+        label="Email"
         value={email}
         onChangeText={setEmail}
+        mode="outlined"
+        style={styles.input}
+        keyboardType="email-address"
+        theme={theme}
       />
       <TextInput
-        style={styles.input}
-        placeholder="Phone (+12345678901)"
+        label="Phone (+12345678901)"
         value={phone}
         onChangeText={setPhone}
+        mode="outlined"
+        style={styles.input}
         keyboardType="phone-pad"
+        theme={theme}
       />
       <TextInput
-        style={styles.input}
-        placeholder="Role (job_seeker/employer)"
+        label="Role (job_seeker/employer)"
         value={role}
         onChangeText={setRole}
+        mode="outlined"
+        style={styles.input}
+        theme={theme}
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title="Sign Up" onPress={handleSignUp} />
+      {error ? <HelperText type="error" visible={error}>{error}</HelperText> : null}
+      <Button mode="contained" onPress={handleSignUp} style={styles.button} theme={theme}>
+        Sign Up
+      </Button>
+      <Button
+        mode="text"
+        onPress={() => navigation.navigate('Login')}
+        style={styles.button}
+        theme={theme}
+      >
+        Already have an account? Log In
+      </Button>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  input: { borderWidth: 1, padding: 10, marginVertical: 10 },
-  error: { color: 'red', marginBottom: 10 },
+  container: { flex: 1, padding: 20, justifyContent: 'center' },
+  input: { marginVertical: 10 },
+  button: { marginVertical: 10 },
 });
