@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet, Alert, Image, Keyboard, Pressable } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../services/supabase';
 
 export default function JobSeekerProfile({ navigation }) {
@@ -8,10 +9,12 @@ export default function JobSeekerProfile({ navigation }) {
   const [name, setName] = useState('');
   const [targetedLocation, setTargetedLocation] = useState('');
   const [bio, setBio] = useState('');
+  const [profilePic, setProfilePic] = useState(null);
   const [isSaveDisabled, setIsSaveDisabled] = useState(true);
 
   useEffect(() => {
     fetchUserData();
+    logBucketList(); // Log the bucket list on component mount
   }, []);
 
   const fetchUserData = async () => {
@@ -21,19 +24,19 @@ export default function JobSeekerProfile({ navigation }) {
       return;
     }
     const userId = user.id;
-    console.log('Signup userId:', userId);
     console.log('Fetching user data for ID:', userId);
     const { data, error } = await supabase
       .from('users')
-      .select('email, phone, name, targeted_location, bio, auth_users_id')
-      .eq('auth_users_id', userId)
+      .select('email, phone, name, targeted_location, bio, profile_pic')
+      .eq('id', userId)
       .single();
     if (error) {
       setEmail(user.email || '');
-      setPhone(user.phone || '');
+      setPhone('');
       setName('');
       setTargetedLocation('');
       setBio('');
+      setProfilePic(null);
     } else {
       console.log('Fetched data:', data);
       setEmail(data.email || user.email || '');
@@ -41,8 +44,55 @@ export default function JobSeekerProfile({ navigation }) {
       setName(data.name || '');
       setTargetedLocation(data.targeted_location || '');
       setBio(data.bio || '');
+      setProfilePic(data.profile_pic || null);
     }
     validateFields();
+  };
+
+  const logBucketList = async () => {
+    console.log('Attempting to list buckets...');
+    const { data, error } = await supabase.storage.listBuckets();
+    if (error) {
+      console.log('Error listing buckets:', error.message);
+    } else {
+      console.log('Available buckets:', data.map(bucket => bucket.name));
+    }
+  };
+
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled) {
+      setProfilePic(result.assets[0].uri);
+    }
+  };
+
+  const uploadImage = async (uri) => {
+    console.log('Starting image upload with URI:', uri);
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.jpg`;
+    console.log('Generated file name:', fileName);
+    console.log('Using bucket name:', 'pics'); // Explicitly log the bucket name
+    const { error, data } = await supabase.storage
+      .from('pics')
+      .upload(fileName, {
+        uri,
+        type: 'image/jpeg',
+        cacheControl: '3600',
+      });
+    if (error) {
+      console.log('Upload error details:', error.message, error.code, error.status);
+      Alert.alert('Error', 'Failed to upload image. Check console.');
+      return null;
+    }
+    console.log('Upload successful, raw data:', data);
+    console.log('Getting public URL for bucket:', 'pics', 'and file:', fileName);
+    const { data: urlData } = supabase.storage.from('pics').getPublicUrl(fileName);
+    console.log('Public URL generated:', urlData.publicUrl);
+    return urlData.publicUrl;
   };
 
   const validateFields = () => {
@@ -56,28 +106,29 @@ export default function JobSeekerProfile({ navigation }) {
 
   const handleSave = async () => {
     if (!validateFields()) {
-      if (!phone.trim().length) {
-        Alert.alert('Error', 'Please enter your phone number');
-      } else if (!name.trim().length) {
-        Alert.alert('Error', 'Please enter your name');
-      } else if (!targetedLocation.trim().length) {
-        Alert.alert('Error', 'Please enter your target location');
-      }
+      if (!phone.trim().length) Alert.alert('Error', 'Please enter your phone number');
+      else if (!name.trim().length) Alert.alert('Error', 'Please enter your name');
+      else if (!targetedLocation.trim().length) Alert.alert('Error', 'Please enter your target location');
       return;
     }
+    let newProfilePic = profilePic;
+    if (profilePic && !profilePic.startsWith('https')) {
+      newProfilePic = await uploadImage(profilePic);
+      if (!newProfilePic) return;
+    }
     const { data: { user } } = await supabase.auth.getUser();
-    console.log('Saving for user:', user.email, 'ID:', user.id);
     const { error } = await supabase.from('users').update({
       name,
       targeted_location: targetedLocation,
-      phone: phone || null,
+      phone,
       bio,
-    }).eq('auth_users_id', user.id);
+      profile_pic: newProfilePic,
+    }).eq('id', user.id);
     if (error) {
       console.log('Update error:', error.message);
       Alert.alert('Error', 'Failed to save profile. Check console.');
     } else {
-      console.log('Update successful');
+      console.log('Update successful with profile_pic:', newProfilePic);
       Alert.alert('Success', 'Your profile was saved successfully!');
       navigation.navigate('DashboardScreen');
     }
@@ -90,7 +141,12 @@ export default function JobSeekerProfile({ navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="always">
       <View style={styles.container}>
-        <Image source={require('../../assets/default-avatar.png')} style={styles.profilePic} />
+        <Pressable onPress={pickImage}>
+          <Image
+            source={profilePic ? { uri: profilePic } : require('../../assets/default-avatar.png')}
+            style={styles.profilePic}
+          />
+        </Pressable>
         <TextInput
           style={styles.input}
           value={email}
@@ -105,7 +161,7 @@ export default function JobSeekerProfile({ navigation }) {
           value={phone}
           onChangeText={setPhone}
           placeholder="+27123456789"
-          keyboardType="phone-pad" // Opens numeric keypad
+          keyboardType="phone-pad"
           returnKeyType="done"
           onSubmitEditing={Keyboard.dismiss}
         />

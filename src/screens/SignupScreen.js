@@ -36,9 +36,7 @@ export default function SignupScreen({ navigation }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { role },
-      },
+      options: { data: { role } },
     });
 
     if (error) {
@@ -47,14 +45,15 @@ export default function SignupScreen({ navigation }) {
       const userId = data.user.id;
       console.log('Signup userId:', userId);
       const { error: insertError } = await supabase.from('users').insert({
+        id: userId, // Set id to match auth.uid()
         email,
         role,
-        auth_users_id: userId,
+        auth_users_id: userId, // Keep this for reference if needed
       });
 
       if (insertError) {
         console.log('Insert error:', insertError.message);
-        Alert.alert('Success', 'Account created! Please complete your profile later.');
+        Alert.alert('Error', 'Failed to create user profile. Check console.');
       } else {
         Alert.alert('Success', 'Successfully Signed Up! Please check your email for verification.');
       }
