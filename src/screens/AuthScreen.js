@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { TextInput, Button, HelperText } from 'react-native-paper';
 import { supabase } from '../services/supabase';
-import { theme } from '../themes/theme';
+import { theme } from '../../themes/theme';
 
 export default function AuthScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -10,7 +10,7 @@ export default function AuthScreen({ navigation }) {
   const [role, setRole] = useState('job_seeker');
   const [error, setError] = useState('');
 
-  const phoneRegex = /^\+\d{10,12}$/; // Matches + followed by 10-12 digits
+  const phoneRegex = /^\+\d{10,12}$/;
 
   const handleSignUp = async () => {
     if (!phoneRegex.test(phone)) {
@@ -21,7 +21,7 @@ export default function AuthScreen({ navigation }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       phone,
-      password: 'temporary_password', // Replace with password input if needed
+      password: 'temporary_password',
     });
 
     if (error) {
@@ -29,16 +29,19 @@ export default function AuthScreen({ navigation }) {
       return;
     }
 
+    console.log('Signup userId:', data.user.id);
+
     const { error: profileError } = await supabase
       .from('users')
-      .insert([{ auth_users_id: data.user.id, role, phone }]);
+      .insert([{ auth_users_id: data.user.id, role, phone, email }]);
 
     if (profileError) {
       setError(profileError.message);
       return;
     }
 
-    navigation.navigate(role === 'job_seeker' ? 'JobSeekerProfile' : 'EmployerProfile', { role });
+    const targetScreen = role === 'job_seeker' ? 'JobSeekerProfile' : 'EmployerProfile';
+    navigation.navigate(targetScreen, { role });
   };
 
   return (
