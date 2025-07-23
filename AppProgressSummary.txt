@@ -1,0 +1,319 @@
+Project Summary - 23 July 2025 - 16:10
+Hey Grok. 
+We've been working on a mobile app for the past 6 months or so. We've had ups and downs, with good progress and failures.
+Right now, we're in a good place with a working structure, backed up in Github.
+
+App description:
+Recruitment app for informal casual work targeted at the lesser educated, poorer communities around the world.
+Employers can be home owners or small businesses posting jobs like gardening, domestic house work, tiling, painting, construction site work, general labour, etc.
+
+I'm sure you can reference some of our conversation highlights from the chat history.
+
+I'm making this summary because I discovered a better way of approaching our interaction with you being able to view github and drop box files.
+This is awesome because we can save on chat limits eliminating the need for me to paste everything into the chat.
+
+Here's our current status:
+We have signup and authentication working working via supabase.
+The package.json will give you an idea of our development setup in VS COde running on my Windows 10 PC.
+
+{
+  "name": "cazzyjobs",
+  "version": "1.0.0",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "1.18.2",
+    "@react-native-community/datetimepicker": "7.2.0",
+    "@react-native-picker/picker": "2.4.10",
+    "@react-navigation/material-bottom-tabs": "6.2.19",
+    "@react-navigation/native": "6.1.18",
+    "@react-navigation/native-stack": "6.9.26",
+    "@react-navigation/stack": "^6.4.1",
+    "@supabase/supabase-js": "^2.39.0",
+    "expo": "49.0.3",
+    "expo-constants": "14.4.2",
+    "expo-image-picker": "~14.3.2",
+    "expo-secure-store": "12.3.1",
+    "expo-status-bar": "1.6.0",
+    "react": "18.2.0",
+    "react-native": "0.72.10",
+    "react-native-calendars": "^1.1312.1",
+    "react-native-country-picker-modal": "^2.0.0",
+    "react-native-gesture-handler": "2.12.0",
+    "react-native-modal": "^14.0.0-rc.1",
+    "react-native-modal-datetime-picker": "^18.0.0",
+    "react-native-multi-selectbox": "^1.5.0",
+    "react-native-paper": "^5.12.5",
+    "react-native-picker-select": "^9.3.1",
+    "react-native-radio-buttons-group": "^3.1.0",
+    "react-native-safe-area-context": "4.6.3",
+    "react-native-screens": "~3.22.0",
+    "react-native-url-polyfill": "^2.0.0",
+    "react-native-vector-icons": "^10.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0"
+  },
+  "private": true
+}
+
+App flow:
+Welcome Screen>Sign up Screen>Profile page (role based)>Dashboard (role based).
+
+Here is the link to the entire project so far: https://github.com/RudiJonker/cazzyjobs
+
+https://github.com/RudiJonker/cazzyjobs/blob/main/package.json
+https://github.com/RudiJonker/cazzyjobs/blob/main/index.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/chat_history.txt
+https://github.com/RudiJonker/cazzyjobs/blob/main/app.json
+https://github.com/RudiJonker/cazzyjobs/blob/main/App.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/src/services/supabase.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/themes/styles.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/themes/theme.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/src/navigation/AppNavigator.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/src/screens/AuthScreen.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/src/screens/WelcomeScreen.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/src/screens/SignupScreen.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/src/screens/EmployerProfileScreen.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/src/screens/JobSeekerProfileScreen.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/src/screens/DashboardScreen.js
+https://github.com/RudiJonker/cazzyjobs/blob/main/src/screens/LoginScreen.js
+
+
+Supabase:
+
+[
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "column_default": "uuid_generate_v4()",
+    "is_nullable": "NO"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "email",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "column_default": null,
+    "is_nullable": "NO"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "name",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "column_default": null,
+    "is_nullable": "YES"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "phone",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "column_default": null,
+    "is_nullable": "YES"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "role",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "column_default": null,
+    "is_nullable": "NO"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "targeted_location",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "column_default": null,
+    "is_nullable": "YES"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "business_name",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "column_default": null,
+    "is_nullable": "YES"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "bio",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "column_default": null,
+    "is_nullable": "YES"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "profile_pic",
+    "data_type": "text",
+    "character_maximum_length": null,
+    "column_default": null,
+    "is_nullable": "YES"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": null,
+    "column_default": "CURRENT_TIMESTAMP",
+    "is_nullable": "NO"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "auth_users_id",
+    "data_type": "uuid",
+    "character_maximum_length": null,
+    "column_default": null,
+    "is_nullable": "YES"
+  }
+]
+
+
+
+[
+  {
+    "all_rls_policies": [
+      {
+        "schema": "public",
+        "table": "users",
+        "policy_name": "Allow authenticated inserts",
+        "permissive": "PERMISSIVE",
+        "roles": "{authenticated}",
+        "command": "INSERT",
+        "qualification_condition": null,
+        "with_check_condition": "true"
+      },
+      {
+        "schema": "public",
+        "table": "users",
+        "policy_name": "Allow authenticated select",
+        "permissive": "PERMISSIVE",
+        "roles": "{authenticated}",
+        "command": "SELECT",
+        "qualification_condition": "(auth.uid() = id)",
+        "with_check_condition": null
+      },
+      {
+        "schema": "public",
+        "table": "users",
+        "policy_name": "Authenticated users can insert",
+        "permissive": "PERMISSIVE",
+        "roles": "{authenticated}",
+        "command": "INSERT",
+        "qualification_condition": null,
+        "with_check_condition": "true"
+      },
+      {
+        "schema": "public",
+        "table": "users",
+        "policy_name": "Authenticated users can read/write their own data",
+        "permissive": "PERMISSIVE",
+        "roles": "{authenticated}",
+        "command": "ALL",
+        "qualification_condition": "(id = auth.uid())",
+        "with_check_condition": null
+      }
+    ]
+  }
+]
+
+
+
+My local project directory: C:\Users\rudij\Documents\Projects\cazzyjobs
+
+Screenshots - Dropbox:
+https://www.dropbox.com/scl/fi/7rbkv9r7ne87v9ioto2o0/CazzyjobsWelcomeScreen.jpg?rlkey=b17aio33ygs882yst1lokvatx&st=f7sau1rg&dl=0
+https://www.dropbox.com/scl/fi/6gmou4j8fsyn71l2kiezp/CazzyJobsSignupScreen.jpg?rlkey=6njeinmbk94dlsxlezqxuihdh&st=scghhk9g&dl=0
+https://www.dropbox.com/scl/fi/38yctvja5iga82funft9c/CazzyJobsJobSeekerProfileScreen.jpg?rlkey=m0lmi0nr17y9npiymj4uj1cvg&st=fsfzrxf1&dl=0
+https://www.dropbox.com/scl/fi/akazcahyqf721mfmp024h/JobSeekerDashboard.jpg?rlkey=01q7lqhqtsciwhrrdpngqtikz&st=pqkao3mx&dl=0
+https://www.dropbox.com/scl/fi/bvky1g5ocjce0tokl223t/EmployerDashboard.jpg?rlkey=mmgm417pjvdm4vjws1exmajb9&st=95ipg79l&dl=0
+
+
+We have now what we can concider as Milestone 1.
+
+Based on the following app layout, we can discuss what other milesones we can put in place so we have proper mapping going forward.
+
+Welcome Screen>User Signs Up>Setup Profile>Dashboard (role based)
+Subsequent Login>Supabase checks user>Navigate to appropriate role based Dashboard
+
+Dashboard has following cards:
+Shared:
+Weather - links to weather screen where a 7 day forecast is displayed (openWeather plugin)
+Calendar - links to calendar page to view job schedules
+Unread - links to chat page which is only available to job seekers and employers who are connected with a job
+
+Job Seekers:
+Rank - will be discussed later - score based on user app interaction and number of jobs
+Rating - displays current rating by employers where work was completed
+Bank - Links to bank screen. Displays a stetement-like summary of running monthly income from completed jobs 
+Jobs - Links to a Job List Screen displaying all current available jobs in the targetted search area
+Applied - links to a page listing jobs the user applied for.
+
+Employers:
+Rating - We need to discuss this. It may become something else as rating will be done at the end of each completed job. To be discussed later.
+New Job - navigates to a Job Posting page.
+My Jobs - links to a page where the user can view and edit posted jobs
+Applicants - links to page where employer can see a list of applicants who applied for his posted jobs
+Salaries - links to a page with a statement-like display of running monthly payments made for work done by job seekers 
+
+The following items shlould be addressed soon:
+Complete the Login process
+Introduce the bottom navigation including tabs: Home, Chat, Profile, Settings, Share
+
+To do later:
+Job flow 
+- posting and scheduling
+- job applications
+- job acceptance
+- Job finalization
+- chat interface (connected users - will include simple navigation or location gps link to direct job seekers to a work site - to be discussed)
+- calendar
+- settings
+- share
+- add revenue -> unintrusive add banner when viewing a job post (to be discussed later)
+- terms and conditions (protect ourselves legally agianst abuse of the app, etc)
+
+These do not necesseraly have to happen in order as above, we will approach it logically where required.
+
+Note: 
+This is not a coding course - I am a non-coder making an app with your genius assistance :).
+Keep responses concise and to the point. Short responses are better, I do not want to read pages of tech jargon that do not make sense to me.
+I receive your response, copy and paste, revert with outcome. If it works, cool, if not - I supply the error logs.
+Please do not respond with indepth analyses of the error. You can do this in the background.
+You do not have to respond with a page long explination of what to do next. I know that code needs to be copied and pasted into the appropriate file.
+I know to run the app with npx expo start --clear to test the result of new code. You simply have to say 'Try the code and revert with the outcome'
+If I don't know how to proceed, I will ask you.
+Similarly, if you do not have access to information which I forgot to make available, let me know and I will share it. Do not make assumptions or guess.
+We are trying to keep the chat as short as possible because of teh free tier limitations. 
+When the chat gets too long, it becomes laggy and you cannot access earlier information in the chat.
+
+Going forward:
+
+When we start a new chat in future, this text file will be referenced for you to get you up to speed.
+I will also reference chat history in a similar .txt file where appropriate, so you can read through the entire previous chat.
+This instance will not include a chat history, but I will let you know when I add one. I want to start the new from a fresh perspective.
+
+Now that you have an overall view of what the app entails, the files, screenshots and development layout, please feel free to ask questions before we dive into code. 
+We will first chat about the plan going forward, mapping out our next steps.
+
