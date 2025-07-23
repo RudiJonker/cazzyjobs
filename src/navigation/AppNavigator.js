@@ -12,7 +12,7 @@ const Stack = createStackNavigator();
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef => { global.navigationRef = navigationRef; }}>
       <Stack.Navigator initialRouteName="Welcome">
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
