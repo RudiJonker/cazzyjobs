@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet, Alert } from 'react-native';
-import { Button } from 'react-native-paper';
-import RadioGroup from 'react-native-radio-buttons-group';
+import { Button, RadioButton } from 'react-native-paper';
 import { supabase } from '../services/supabase';
+import { useNavigation } from '@react-navigation/native';
 
-export default function SignupScreen({ navigation }) {
+export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('job_seeker');
-
-  const radioButtons = [
-    { id: 'job_seeker', label: 'Job Seeker', value: 'job_seeker' },
-    { id: 'employer', label: 'Employer', value: 'employer' },
-  ];
+  const navigation = useNavigation();
 
   const handleSignup = async () => {
     if (!email || !password) {
@@ -45,10 +41,10 @@ export default function SignupScreen({ navigation }) {
       const userId = data.user.id;
       console.log('Signup userId:', userId);
       const { error: insertError } = await supabase.from('users').insert({
-        id: userId, // Set id to match auth.uid()
+        id: userId,
         email,
         role,
-        auth_users_id: userId, // Keep this for reference if needed
+        auth_users_id: userId,
       });
 
       if (insertError) {
@@ -56,12 +52,7 @@ export default function SignupScreen({ navigation }) {
         Alert.alert('Error', 'Failed to create user profile. Check console.');
       } else {
         Alert.alert('Success', 'Successfully Signed Up! Please check your email for verification.');
-      }
-
-      if (role === 'job_seeker') {
-        navigation.navigate('JobSeekerProfile');
-      } else {
-        navigation.navigate('EmployerProfile');
+        navigation.navigate('Main', { screen: 'Home', params: { userRole: role, userId } });
       }
     }
   };
@@ -85,13 +76,16 @@ export default function SignupScreen({ navigation }) {
           secureTextEntry
         />
         <Text style={styles.label}>Select Role:</Text>
-        <RadioGroup
-          radioButtons={radioButtons}
-          onPress={(id) => setRole(id)}
-          selectedId={role}
-          layout="row"
-          containerStyle={styles.radioGroup}
-        />
+        <RadioButton.Group onValueChange={setRole} value={role}>
+          <View style={styles.radioContainer}>
+            <RadioButton value="job_seeker" color="#48d22b" />
+            <Text style={styles.radioLabel}>Job Seeker</Text>
+          </View>
+          <View style={styles.radioContainer}>
+            <RadioButton value="employer" color="#48d22b" />
+            <Text style={styles.radioLabel}>Employer</Text>
+          </View>
+        </RadioButton.Group>
         <Button
           mode="contained"
           style={styles.button}
@@ -120,9 +114,36 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f5f5f5',
   },
-  input: { height: 40, borderColor: '#ccc', borderWidth: 1, marginBottom: 12, padding: 8, borderRadius: 4 },
-  label: { fontSize: 16, color: '#333', marginBottom: 8 },
-  radioGroup: { marginBottom: 12 },
-  button: { marginTop: 16, backgroundColor: '#48d22b' },
-  link: { color: '#48d22b', textAlign: 'center', marginTop: 12 },
+  input: {
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 8,
+    borderRadius: 4,
+    backgroundColor: '#fff',
+  },
+  label: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 8,
+  },
+  radioContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  radioLabel: {
+    fontSize: 16,
+    color: '#333',
+  },
+  button: {
+    marginTop: 16,
+    backgroundColor: '#48d22b',
+  },
+  link: {
+    color: '#48d22b',
+    textAlign: 'center',
+    marginTop: 12,
+  },
 });

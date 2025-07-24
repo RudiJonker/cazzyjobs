@@ -42,7 +42,7 @@ export default function LoginScreen() {
         return;
       }
 
-      navigation.navigate('DashboardScreen', { userRole });
+      navigation.navigate('Main', { screen: 'Home', params: { userRole } });
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred.');
     }
@@ -94,7 +94,22 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f5f5f5',
   },
-  input: { height: 40, borderColor: '#ccc', borderWidth: 1, marginBottom: 12, padding: 8, borderRadius: 4 },
-  button: { marginTop: 16, backgroundColor: '#48d22b' },
-  link: { color: '#48d22b', textAlign: 'center', marginTop: 12 },
+  input: { 
+    height: 40, 
+    borderColor: '#ccc', 
+    borderWidth: 1, 
+    marginBottom: 12, 
+    padding: 8, 
+    borderRadius: 4,
+    backgroundColor: '#fff',
+  },
+  button: { 
+    marginTop: 16, 
+    backgroundColor: '#48d22b' 
+  },
+  link: { 
+    color: '#48d22b', 
+    textAlign: 'center', 
+    marginTop: 12 
+  },
 });
