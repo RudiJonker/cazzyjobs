@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
+import { supabase } from '../lib/supabase'; // Add this import
 
 const SignUpScreen = ({ navigation }) => {
   // State to hold form data
@@ -11,20 +12,59 @@ const SignUpScreen = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [userRole, setUserRole] = useState('worker'); // 'worker' or 'employer'
 
-  const handleSignUp = () => {
-    // Basic validation
-    if (password !== confirmPassword) {
-      alert("Passwords don't match!");
-      return;
-    }
-    if (password.length < 6) {
-      alert("Password must be at least 6 characters!");
-      return;
-    }
+  const handleSignUp = async () => {
+  // Basic validation
+  if (password !== confirmPassword) {
+    alert("Passwords don't match!");
+    return;
+  }
+  if (password.length < 6) {
+    alert("Password must be at least 6 characters!");
+    return;
+  }
+
+  try {
+    console.log("Signing up...");
     
-    console.log("Signing up with:", { email, password, userRole });
-    // Here we will later add the Supabase signup logic
-  };
+    // 1. Create the user with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email,
+      password: password,
+    });
+
+    if (authError) {
+      alert("Sign up error: " + authError.message);
+      return;
+    }
+
+    // 2. If auth succeeds, create their profile in our 'profiles' table
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .insert([
+        {
+          id: authData.user.id, // Same ID as the auth user
+          user_role: userRole,
+          email: email, // Store email in profile too for easy access
+          // full_name and other fields can be added later
+        }
+      ]);
+
+    if (profileError) {
+      alert("Profile creation error: " + profileError.message);
+      return;
+    }
+
+    console.log("Sign up successful!", authData);
+    alert("Account created successfully! Please check your email for verification.");
+    
+    // Navigate to login screen after successful signup
+    navigation.navigate('MainTabs');
+
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    alert("An unexpected error occurred. Please try again.");
+  }
+};
 
   return (
     <ScrollView contentContainerStyle={[globalStyles.container, { padding: SIZES.padding }]}>
@@ -143,7 +183,7 @@ const SignUpScreen = ({ navigation }) => {
             Log In
           </Text>
         </TouchableOpacity>
-      </View>
+      </View> 
     </ScrollView>
   );
 };
