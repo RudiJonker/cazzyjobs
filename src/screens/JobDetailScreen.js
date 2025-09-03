@@ -3,14 +3,23 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
+import { useApplications } from '../hooks/useApplications'; // Add this import
 
 const JobDetailScreen = ({ route, navigation }) => {
-  const { job } = route.params; // Get the job passed from navigation
+  const { job } = route.params;
+  const { applyToJob, loading, error } = useApplications(); // Add this line
 
   const handleApply = async () => {
     console.log("Applying for job:", job.id);
-    // We'll implement the actual application logic later
-    alert(`You've applied for: ${job.title}`);
+    
+    const result = await applyToJob(job.id);
+    
+    if (result.success) {
+      alert(`✅ Application sent for: ${job.title}\nThe employer will contact you if interested.`);
+      navigation.goBack();
+    } else {
+      alert(`❌ Application failed: ${result.error}`);
+    }
   };
 
   return (
@@ -63,16 +72,18 @@ const JobDetailScreen = ({ route, navigation }) => {
           padding: SIZES.padding,
           borderRadius: SIZES.radius,
           alignItems: 'center',
-          marginBottom: SIZES.margin * 2
+          marginBottom: SIZES.margin * 2,
+          opacity: loading ? 0.6 : 1, // Visual feedback when loading
         }}
         onPress={handleApply}
+        disabled={loading} // Disable button when loading
       >
         <Text style={{ color: COLORS.white, fontSize: SIZES.large, fontWeight: '600' }}>
-          I'm Interested!
+          {loading ? 'Applying...' : 'I\'m Interested!'}
         </Text>
       </TouchableOpacity>
 
-      {/* Employer Info (Placeholder for now) */}
+      {/* Employer Info */}
       <View style={{ 
         backgroundColor: COLORS.gray100, 
         padding: SIZES.padding,
