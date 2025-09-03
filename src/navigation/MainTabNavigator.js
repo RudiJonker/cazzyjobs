@@ -1,9 +1,10 @@
 // src/navigation/MainTabNavigator.js
+import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
-// Import placeholder screens (we'll create these next)
+// Import actual screens (not placeholders)
 import HomeScreen from '../screens/HomeScreen';
 import SearchScreen from '../screens/SearchScreen';
 import PostJobScreen from '../screens/PostJobScreen';

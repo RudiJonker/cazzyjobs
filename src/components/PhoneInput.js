@@ -4,6 +4,7 @@ import { View, Text } from 'react-native';
 import RNPhoneInput from 'react-native-phone-number-input';
 import { COLORS, SIZES } from '../constants/theme';
 
+
 const PhoneInput = ({ value, onChangePhone, defaultCode = 'ZA' }) => {
   const phoneInput = useRef(null);
   const [valid, setValid] = useState(true);
