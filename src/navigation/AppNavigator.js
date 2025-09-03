@@ -1,6 +1,7 @@
 // src/navigation/AppNavigator.js
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
+import JobDetailScreen from '../screens/JobDetailScreen';
 
 // Import Screens
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -24,7 +25,17 @@ export default function AppNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+        <Stack.Screen 
+        name="JobDetail" 
+        component={JobDetailScreen} 
+        options={{ 
+        headerShown: true,
+        title: 'Job Details',
+        headerBackTitle: 'Back'
+        }}
+      />
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
+

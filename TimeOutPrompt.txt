@@ -1,8 +1,2 @@
-ERROR  [Error: UnableToResolveError Unable to resolve module @react-navigation/native-stack from C:\Users\rudij\Documents\Projects\cazzyjobs\src\navigation\AppNavigator.js: @react-navigation/native-stack could not be found within the project or in these directories:
-  node_modules
-  1 | // src/navigation/AppNavigator.js
-> 2 | import { createNativeStackNavigator } from '@react-navigation/native-stack';
-    |                                             ^
-  3 | import { NavigationContainer } from '@react-navigation/native';      
-  4 |
-  5 | // Import Screens]
+Ok, we had an error because we did not imort usejobs.js.
+I added this to the homescreen: import { useJobs } from '../hooks/useJobs'; and the jobs are now populated only by East London jobs. Nice!
