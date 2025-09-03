@@ -3,11 +3,11 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
-import { useApplications } from '../hooks/useApplications'; // Add this import
+import { useApplications } from '../hooks/useApplications';
 
 const JobDetailScreen = ({ route, navigation }) => {
   const { job } = route.params;
-  const { applyToJob, loading, error } = useApplications(); // Add this line
+  const { applyToJob, loading, error } = useApplications();
 
   const handleApply = async () => {
     console.log("Applying for job:", job.id);
@@ -24,6 +24,25 @@ const JobDetailScreen = ({ route, navigation }) => {
 
   return (
     <ScrollView style={globalStyles.container}>
+      {/* Ad Banner Placeholder */}
+      <View style={{
+        backgroundColor: '#f0f0f0',
+        padding: SIZES.padding,
+        borderRadius: SIZES.radius,
+        marginBottom: SIZES.margin,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.gray300,
+        borderStyle: 'dashed'
+      }}>
+        <Text style={{ color: COLORS.gray500, fontWeight: '600' }}>
+          🎯 Ad Banner Space (320×50)
+        </Text>
+        <Text style={{ color: COLORS.gray500, fontSize: SIZES.small, marginTop: 5 }}>
+          Static advertisement will appear here
+        </Text>
+      </View>
+
       {/* Job Header */}
       <View style={{ marginBottom: SIZES.margin * 2 }}>
         <Text style={{ fontSize: SIZES.xxLarge, fontWeight: 'bold', color: COLORS.gray900, marginBottom: 10 }}>
@@ -73,10 +92,10 @@ const JobDetailScreen = ({ route, navigation }) => {
           borderRadius: SIZES.radius,
           alignItems: 'center',
           marginBottom: SIZES.margin * 2,
-          opacity: loading ? 0.6 : 1, // Visual feedback when loading
+          opacity: loading ? 0.6 : 1,
         }}
         onPress={handleApply}
-        disabled={loading} // Disable button when loading
+        disabled={loading}
       >
         <Text style={{ color: COLORS.white, fontSize: SIZES.large, fontWeight: '600' }}>
           {loading ? 'Applying...' : 'I\'m Interested!'}
