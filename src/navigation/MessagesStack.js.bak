@@ -1,0 +1,29 @@
+import React from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import MessagesListScreen from '../screens/MessagesListScreen';
+import ChatScreen from '../screens/ChatScreen';
+
+const Stack = createNativeStackNavigator();
+
+export default function MessagesStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: true,
+        animation: 'slide_from_right',
+        headerBackTitle: 'Back'
+      }}
+    >
+      <Stack.Screen 
+        name="MessagesList" 
+        component={MessagesListScreen} 
+        options={{ title: 'Messages' }}
+      />
+      <Stack.Screen 
+        name="Chat" 
+        component={ChatScreen} 
+        options={{ title: 'Chat' }}
+      />
+    </Stack.Navigator>
+  );
+}
