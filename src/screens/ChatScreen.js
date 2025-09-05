@@ -1,6 +1,6 @@
 // src/screens/ChatScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import { supabase } from '../lib/supabase';
@@ -43,6 +43,12 @@ const ChatScreen = ({ route, navigation }) => {
   // Fetch the other party's name and set screen title
   const fetchConversationDetails = async () => {
     try {
+      // Check if user is available
+      if (!user) {
+        console.log('User not available yet');
+        return;
+      }
+
       // Get application details to find out who the other party is
       const { data: application, error } = await supabase
         .from('applications')
@@ -79,6 +85,10 @@ const ChatScreen = ({ route, navigation }) => {
   // Send a new message
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to send messages');
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -101,6 +111,8 @@ const ChatScreen = ({ route, navigation }) => {
 
   // Set up real-time subscription for new messages
   useEffect(() => {
+    if (!user) return; // Don't run until user is available
+
     fetchMessages();
     fetchConversationDetails();
 
@@ -125,10 +137,10 @@ const ChatScreen = ({ route, navigation }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [applicationId]);
+  }, [applicationId, user]); // Add user to dependency array
 
   const renderMessage = ({ item }) => {
-    const isMyMessage = item.sender_id === user.id;
+    const isMyMessage = item.sender_id === user?.id;
     
     return (
       <View style={{

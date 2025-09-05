@@ -11,6 +11,7 @@ import MainTabNavigator from './MainTabNavigator';
 import JobDetailScreen from '../screens/JobDetailScreen';
 import EmployerApplicationsScreen from '../screens/EmployerApplicationsScreen';
 import PostJobScreen from '../screens/PostJobScreen';
+import ChatScreen from '../screens/ChatScreen'; // <-- Add this import
 
 const Stack = createNativeStackNavigator();
 
@@ -39,6 +40,10 @@ export default function AppNavigator() {
         />
         <Stack.Screen name="PostJob" component={PostJobScreen} 
           options={{ headerShown: true, title: 'Post a New Job', headerBackTitle: 'Back' }}
+        />
+        {/* Add ChatScreen to main navigator - SAFE APPROACH */}
+        <Stack.Screen name="Chat" component={ChatScreen} 
+          options={{ headerShown: true, title: 'Chat', headerBackTitle: 'Back' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
