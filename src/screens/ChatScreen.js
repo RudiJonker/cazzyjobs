@@ -41,121 +41,135 @@ const ChatScreen = ({ route, navigation }) => {
   };
 
   // Fetch the other party's name and set screen title
-  const fetchConversationDetails = async () => {
-    try {
-      // Get application details to find out who the other party is
-      const { data: application, error } = await supabase
-        .from('applications')
-        .select(`
-          worker_id,
-          jobs:job_id(title, employer_id)
-        `)
-        .eq('id', applicationId)
-        .single();
-
-      if (error) throw error;
-
-      const jobTitle = application.jobs?.title || 'Unknown Job';
-      navigation.setOptions({ title: jobTitle });
-
-      // Determine who the other party is
-      const isWorker = user.id === application.worker_id;
-      const otherPartyId = isWorker ? application.jobs?.employer_id : application.worker_id;
-
-      if (otherPartyId) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', otherPartyId)
-          .single();
-        
-        setOtherPartyName(profile?.full_name || (isWorker ? 'Employer' : 'Worker'));
-      }
-    } catch (error) {
-      console.error('Error fetching conversation details:', error);
+  // Fetch the other party's name and set screen title
+const fetchConversationDetails = async () => {
+  try {
+    // Check if user is available - ADD THIS NULL CHECK
+    if (!user) {
+      console.log('User not available yet');
+      return;
     }
-  };
+
+    // Get application details to find out who the other party is
+    const { data: application, error } = await supabase
+      .from('applications')
+      .select(`
+        worker_id,
+        jobs:job_id(title, employer_id)
+      `)
+      .eq('id', applicationId)
+      .single();
+
+    if (error) throw error;
+
+    const jobTitle = application.jobs?.title || 'Unknown Job';
+    navigation.setOptions({ title: jobTitle });
+
+    // Determine who the other party is
+    const isWorker = user.id === application.worker_id; // Now user.id is safe
+    const otherPartyId = isWorker ? application.jobs?.employer_id : application.worker_id;
+
+    if (otherPartyId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', otherPartyId)
+        .single();
+      
+      setOtherPartyName(profile?.full_name || (isWorker ? 'Employer' : 'Worker'));
+    }
+  } catch (error) {
+    console.error('Error fetching conversation details:', error);
+  }
+};
 
   // Send a new message
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+  if (!newMessage.trim()) return;
+  if (!user) { // Add null check
+    Alert.alert('Error', 'You must be logged in to send messages');
+    return;
+  }
 
-    try {
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          application_id: applicationId,
-          sender_id: user.id,
-          content: newMessage.trim(),
-          read: false
-        });
+  try {
+    const { error } = await supabase
+      .from('messages')
+      .insert({
+        application_id: applicationId,
+        sender_id: user.id, // Now safe to access
+        content: newMessage.trim(),
+        read: false
+      });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      setNewMessage(''); // Clear input field
-    } catch (error) {
-      console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message');
-    }
-  };
+    setNewMessage(''); // Clear input field
+  } catch (error) {
+    console.error('Error sending message:', error);
+    Alert.alert('Error', 'Failed to send message');
+  }
+};
 
   // Set up real-time subscription for new messages
-  useEffect(() => {
-    fetchMessages();
-    fetchConversationDetails();
+  // Set up real-time subscription for new messages
+useEffect(() => {
+  if (!user) return; // Don't run until user is available
 
-    const subscription = supabase
-      .channel('messages-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `application_id=eq.${applicationId}`
-        },
-        (payload) => {
-          // When a new message is inserted, add it to our state
-          setMessages(prev => [...prev, payload.new]);
-        }
-      )
-      .subscribe();
+  fetchMessages();
+  fetchConversationDetails();
 
-    // Cleanup subscription on unmount
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [applicationId]);
+  const subscription = supabase
+    .channel('messages-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `application_id=eq.${applicationId}`
+      },
+      (payload) => {
+        // When a new message is inserted, add it to our state
+        setMessages(prev => [...prev, payload.new]);
+      }
+    )
+    .subscribe();
+
+  // Cleanup subscription on unmount
+  return () => {
+    subscription.unsubscribe();
+  };
+}, [applicationId, user]); // Add user to dependency array
 
   const renderMessage = ({ item }) => {
-    const isMyMessage = item.sender_id === user.id;
-    
-    return (
-      <View style={{
-        alignSelf: isMyMessage ? 'flex-end' : 'flex-start',
-        backgroundColor: isMyMessage ? COLORS.primary : COLORS.gray200,
-        padding: SIZES.padding,
-        borderRadius: SIZES.radius,
-        marginBottom: SIZES.margin,
-        maxWidth: '80%'
+  const isMyMessage = item.sender_id === user?.id; // Add optional chaining
+  
+  return (
+    <View style={{
+      alignSelf: isMyMessage ? 'flex-end' : 'flex-start',
+      backgroundColor: isMyMessage ? COLORS.primary : COLORS.gray200,
+      padding: SIZES.padding,
+      borderRadius: SIZES.radius,
+      marginBottom: SIZES.margin,
+      maxWidth: '80%'
+    }}>
+      <Text style={{
+        color: isMyMessage ? COLORS.white : COLORS.gray900,
+        fontSize: SIZES.medium
       }}>
-        <Text style={{
-          color: isMyMessage ? COLORS.white : COLORS.gray900,
-          fontSize: SIZES.medium
-        }}>
-          {item.content}
-        </Text>
-        <Text style={{
-          color: isMyMessage ? COLORS.white : COLORS.gray500,
-          fontSize: SIZES.small,
-          marginTop: 4,
-          opacity: 0.7
-        }}>
-          {new Date(item.created_at).toLocaleTimeString()}
-        </Text>
-      </View>
-    );
-  };
+        {item.content}
+      </Text>
+      <Text style={{
+        color: isMyMessage ? COLORS.white : COLORS.gray500,
+        fontSize: SIZES.small,
+        marginTop: 4,
+        opacity: 0.7
+      }}>
+        {new Date(item.created_at).toLocaleTimeString()}
+      </Text>
+    </View>
+  );
+};
 
   if (loading) {
     return (
