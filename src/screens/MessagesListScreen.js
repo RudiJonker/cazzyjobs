@@ -16,15 +16,27 @@ const MessagesListScreen = ({ navigation }) => {
       setLoading(true);
       if (!user) return;
 
-      // We need to use a more direct approach since complex OR conditions with nested fields are tricky
-      // Let's fetch applications where the user is either the worker OR the employer
+      console.log('Fetching conversations for user:', user.id);
+
+      // Fetch all hired applications where the user is involved
       const { data, error } = await supabase
         .from('applications')
         .select(`
           id,
           hired_at,
           worker_id,
-          jobs:job_id (title, proposed_wage, category, employer_id)
+          jobs:job_id (
+            title, 
+            employer_id,
+            profiles:employer_id (
+              full_name,
+              email
+            )
+          ),
+          workers:worker_id (
+            full_name,
+            email
+          )
         `)
         .eq('status', 'hired')
         .order('hired_at', { ascending: false });
@@ -34,38 +46,42 @@ const MessagesListScreen = ({ navigation }) => {
         return;
       }
 
+      console.log('Raw applications data:', data);
+
       // Filter applications on the client side to only include those where user is involved
       const userConversations = data.filter(app => 
         app.worker_id === user.id || app.jobs?.employer_id === user.id
       );
 
-      // Now fetch profile names for the other parties
-      const conversationsWithNames = await Promise.all(
-        userConversations.map(async (app) => {
-          const isWorker = user.id === app.worker_id;
-          const otherPartyId = isWorker ? app.jobs?.employer_id : app.worker_id;
-          
-          let otherPartyName = 'Unknown';
-          
-          if (otherPartyId) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', otherPartyId)
-              .single();
-            
-            otherPartyName = profile?.full_name || (isWorker ? 'Employer' : 'Worker');
-          }
+      console.log('Filtered conversations:', userConversations);
 
-          return {
-            id: app.id,
-            jobTitle: app.jobs?.title || 'Unknown Job',
-            otherPartyName: otherPartyName,
-            hiredAt: app.hired_at,
-          };
-        })
-      );
+      // Format the conversations with proper names
+      const conversationsWithNames = userConversations.map((app) => {
+        const isWorker = user.id === app.worker_id;
+        
+        // Get the other party's details
+        let otherPartyName = 'Unknown';
+        if (isWorker) {
+          // Worker viewing → show employer's name
+          otherPartyName = app.jobs?.profiles?.full_name || 
+                          app.jobs?.profiles?.email || 
+                          'Employer';
+        } else {
+          // Employer viewing → show worker's name
+          otherPartyName = app.workers?.full_name || 
+                          app.workers?.email || 
+                          'Worker';
+        }
 
+        return {
+          id: app.id,
+          jobTitle: app.jobs?.title || 'Unknown Job',
+          otherPartyName: otherPartyName,
+          hiredAt: app.hired_at,
+        };
+      });
+
+      console.log('Formatted conversations:', conversationsWithNames);
       setConversations(conversationsWithNames);
       
     } catch (err) {

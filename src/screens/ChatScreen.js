@@ -1,6 +1,6 @@
 // src/screens/ChatScreen.js
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import { supabase } from '../lib/supabase';
@@ -13,6 +13,7 @@ const ChatScreen = ({ route, navigation }) => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [otherPartyName, setOtherPartyName] = useState('');
+  const hasMarkedAsRead = useRef(false); // To prevent infinite loops
 
   // Fetch chat messages
   const fetchMessages = async () => {
@@ -41,135 +42,194 @@ const ChatScreen = ({ route, navigation }) => {
   };
 
   // Fetch the other party's name and set screen title
-  // Fetch the other party's name and set screen title
-const fetchConversationDetails = async () => {
-  try {
-    // Check if user is available - ADD THIS NULL CHECK
-    if (!user) {
-      console.log('User not available yet');
-      return;
-    }
+  const fetchConversationDetails = async () => {
+    try {
+      if (!user) {
+        console.log('User not available yet');
+        return;
+      }
 
-    // Get application details to find out who the other party is
-    const { data: application, error } = await supabase
-      .from('applications')
-      .select(`
-        worker_id,
-        jobs:job_id(title, employer_id)
-      `)
-      .eq('id', applicationId)
-      .single();
-
-    if (error) throw error;
-
-    const jobTitle = application.jobs?.title || 'Unknown Job';
-    navigation.setOptions({ title: jobTitle });
-
-    // Determine who the other party is
-    const isWorker = user.id === application.worker_id; // Now user.id is safe
-    const otherPartyId = isWorker ? application.jobs?.employer_id : application.worker_id;
-
-    if (otherPartyId) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', otherPartyId)
+      // Get application details to find out who the other party is
+      const { data: application, error } = await supabase
+        .from('applications')
+        .select(`
+          worker_id,
+          jobs:job_id(title, employer_id)
+        `)
+        .eq('id', applicationId)
         .single();
-      
-      setOtherPartyName(profile?.full_name || (isWorker ? 'Employer' : 'Worker'));
+
+      if (error) throw error;
+
+      const jobTitle = application.jobs?.title || 'Unknown Job';
+      navigation.setOptions({ title: jobTitle });
+
+      // Determine who the other party is
+      const isWorker = user.id === application.worker_id;
+      const otherPartyId = isWorker ? application.jobs?.employer_id : application.worker_id;
+
+      if (otherPartyId) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', otherPartyId)
+          .single();
+        
+        setOtherPartyName(profile?.full_name || profile?.email || (isWorker ? 'Employer' : 'Worker'));
+      }
+    } catch (error) {
+      console.error('Error fetching conversation details:', error);
     }
-  } catch (error) {
-    console.error('Error fetching conversation details:', error);
-  }
-};
+  };
+
+  // Mark MESSAGES as read for this chat (CORRECTED FUNCTION)
+  const markMessagesAsRead = async () => {
+    try {
+      if (!user || hasMarkedAsRead.current) return;
+      
+      console.log('Marking messages as read in chat:', applicationId);
+      hasMarkedAsRead.current = true; // Prevent multiple calls
+      
+      // Mark all messages in this chat that aren't sent by the user as read
+      const { error } = await supabase
+        .from('messages')
+        .update({ read: true })
+        .eq('application_id', applicationId)
+        .eq('read', false)
+        .neq('sender_id', user.id); // Only mark messages from others as read
+
+      if (error) {
+        console.error('Error marking messages as read:', error);
+        hasMarkedAsRead.current = false; // Reset on error
+      } else {
+        console.log('Messages marked as read for application:', applicationId);
+        // Don't reset hasMarkedAsRead - we only want to do this once per chat session
+      }
+    } catch (error) {
+      console.error('Error in markMessagesAsRead:', error);
+      hasMarkedAsRead.current = false; // Reset on error
+    }
+  };
 
   // Send a new message
   const sendMessage = async () => {
-  if (!newMessage.trim()) return;
-  if (!user) { // Add null check
-    Alert.alert('Error', 'You must be logged in to send messages');
-    return;
-  }
+    if (!newMessage.trim()) return;
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to send messages');
+      return;
+    }
 
-  try {
-    const { error } = await supabase
-      .from('messages')
-      .insert({
-        application_id: applicationId,
-        sender_id: user.id, // Now safe to access
-        content: newMessage.trim(),
-        read: false
+    try {
+      // First, get application details to find the other party
+      const { data: application } = await supabase
+        .from('applications')
+        .select('worker_id, jobs(employer_id)')
+        .eq('id', applicationId)
+        .single();
+
+      if (!application) throw new Error('Application not found');
+
+      // Determine who the recipient is (the other party)
+      const isWorker = user.id === application.worker_id;
+      const recipientId = isWorker ? application.jobs.employer_id : application.worker_id;
+
+      // Send the message
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          application_id: applicationId,
+          sender_id: user.id,
+          content: newMessage.trim(),
+          read: false
+        });
+
+      if (messageError) throw messageError;
+
+      // Create notification for the recipient
+      const { error: notifError } = await supabase.rpc('create_notification', {
+        p_user_id: recipientId,
+        p_title: 'New Message 💬',
+        p_body: `You have a new message about a job.`,
+        p_type: 'message',
+        p_related_id: applicationId
       });
 
-    if (error) throw error;
+      if (notifError) console.error('Notification error:', notifError);
 
-    setNewMessage(''); // Clear input field
-  } catch (error) {
-    console.error('Error sending message:', error);
-    Alert.alert('Error', 'Failed to send message');
-  }
-};
-
-  // Set up real-time subscription for new messages
-  // Set up real-time subscription for new messages
-useEffect(() => {
-  if (!user) return; // Don't run until user is available
-
-  fetchMessages();
-  fetchConversationDetails();
-
-  const subscription = supabase
-    .channel('messages-changes')
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `application_id=eq.${applicationId}`
-      },
-      (payload) => {
-        // When a new message is inserted, add it to our state
-        setMessages(prev => [...prev, payload.new]);
-      }
-    )
-    .subscribe();
-
-  // Cleanup subscription on unmount
-  return () => {
-    subscription.unsubscribe();
+      setNewMessage(''); // Clear input field
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message');
+    }
   };
-}, [applicationId, user]); // Add user to dependency array
+
+  // Set up real-time subscription for new messages
+  useEffect(() => {
+    if (!user) return;
+
+    fetchMessages();
+    fetchConversationDetails();
+
+    // Set up subscription first, then mark as read
+    const subscription = supabase
+      .channel('messages-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `application_id=eq.${applicationId}`
+        },
+        (payload) => {
+          // When a new message is inserted, add it to our state
+          setMessages(prev => [...prev, payload.new]);
+        }
+      )
+      .subscribe();
+
+    // Mark messages as read after a short delay to ensure subscription is active
+    const markReadTimer = setTimeout(() => {
+      markMessagesAsRead();
+    }, 1000);
+
+    // Cleanup subscription on unmount
+    return () => {
+      clearTimeout(markReadTimer);
+      subscription.unsubscribe();
+      hasMarkedAsRead.current = false; // Reset for next time
+    };
+  }, [applicationId, user]);
 
   const renderMessage = ({ item }) => {
-  const isMyMessage = item.sender_id === user?.id; // Add optional chaining
-  
-  return (
-    <View style={{
-      alignSelf: isMyMessage ? 'flex-end' : 'flex-start',
-      backgroundColor: isMyMessage ? COLORS.primary : COLORS.gray200,
-      padding: SIZES.padding,
-      borderRadius: SIZES.radius,
-      marginBottom: SIZES.margin,
-      maxWidth: '80%'
-    }}>
-      <Text style={{
-        color: isMyMessage ? COLORS.white : COLORS.gray900,
-        fontSize: SIZES.medium
+    const isMyMessage = item.sender_id === user?.id;
+    
+    return (
+      <View style={{
+        alignSelf: isMyMessage ? 'flex-end' : 'flex-start',
+        backgroundColor: isMyMessage ? COLORS.primary : COLORS.gray200,
+        padding: SIZES.padding,
+        borderRadius: SIZES.radius,
+        marginBottom: SIZES.margin,
+        maxWidth: '80%'
       }}>
-        {item.content}
-      </Text>
-      <Text style={{
-        color: isMyMessage ? COLORS.white : COLORS.gray500,
-        fontSize: SIZES.small,
-        marginTop: 4,
-        opacity: 0.7
-      }}>
-        {new Date(item.created_at).toLocaleTimeString()}
-      </Text>
-    </View>
-  );
-};
+        <Text style={{
+          color: isMyMessage ? COLORS.white : COLORS.gray900,
+          fontSize: SIZES.medium
+        }}>
+          {item.content}
+        </Text>
+        <Text style={{
+          color: isMyMessage ? COLORS.white : COLORS.gray500,
+          fontSize: SIZES.small,
+          marginTop: 4,
+          opacity: 0.7
+        }}>
+          {new Date(item.created_at).toLocaleTimeString()}
+        </Text>
+      </View>
+    );
+  };
 
   if (loading) {
     return (

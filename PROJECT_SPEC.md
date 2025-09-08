@@ -1,223 +1,159 @@
-PROJECT: cazzyjobs - Detailed Project Map
-Core Concept: A recruitment app for localized casual labour (e.g., gardening, cleaning, domestic work). Targets less educated, poorer communities. Employers can be homeowners, small businesses, etc.
+PROJECT: cazzyjobs - Current Status Summary
+*(Last Updated: 2025-09-05)*
 
-1. Tech Stack & Environment
+🎯 Core Concept
+A recruitment platform connecting local casual workers (gardening, cleaning, domestic work, construction, etc.) with employers in their city. Targets underserved communities with simplified job matching.
+
+🏗️ Tech Stack & Environment
 Framework: Expo SDK 53 (Managed Workflow)
 
-Frontend: React Native 0.79.6, React 19.0.0
+Frontend: React Native 0.79.6, React 18.2.0
 
-Navigation: React Navigation v7 (@react-navigation/native, bottom-tabs, stack)
+Navigation: React Navigation v7 (Native Stack + Bottom Tabs)
 
 Backend: Supabase (Auth, Database, Realtime)
 
-State/Local Storage: React Native AsyncStorage
+State: React hooks, AsyncStorage for local data
 
-Environment Variables: react-native-dotenv
+Environment: react-native-dotenv for configuration
 
 Icons: @expo/vector-icons
 
 Repo: https://github.com/RudiJonker/cazzyjobs (Private)
 
-2. Database Schema (Supabase)
+📊 Database Schema (Supabase) - Updated
 Tables:
 
-profiles (Extends auth.users)
+profiles (extends auth.users): user roles, bio, location, avatar
 
-id (UUID, references auth.users)
+jobs: job postings with categories, wages, location-based filtering
 
-user_role (Text, 'worker' or 'employer')
+applications: worker applications with status tracking ('pending', 'hired', 'rejected')
 
-full_name (Text)
+messages: real-time chat system scoped to hired applications
 
-city (Text) // Primary location filter
+notifications: in-app notifications system with read states
 
-avatar_url (Text)
+Key Relationships:
 
-bio (Text)
+Chat is only enabled when application status = 'hired'
 
-jobs
+Location-based filtering by user's city
 
-id (UUID)
+Real-time subscriptions for messages and notifications
 
-employer_id (UUID, references profiles)
+🚀 Current Implementation Status
+✅ COMPLETED FEATURES
+Authentication System
 
-title (Text)
+Role-based signup (Worker/Employer)
 
-description (Text)
+Secure Supabase Auth with RLS policies
 
-category (Text)
+Persistent sessions
 
-job_city (Text) // Must match user's city for filtering
+Job Management
 
-full_address (Text) // Only shared privately via chat after hire
+Multi-step job posting form with scheduling
 
-proposed_wage (Numeric)
+Category-based job browsing
 
-status (Text, e.g., 'active', 'completed')
+Location-based filtering (by city)
 
-applications
+Application System
 
-id (UUID)
+Workers can apply to jobs
 
-job_id (UUID, references jobs)
+Employers can view applicants
 
-worker_id (UUID, references profiles)
+Hire/reject functionality with status updates
 
-status (Text, 'pending', 'hired', 'rejected')
+Real-time Chat System
 
-hired_at (Timestamptz) // Timestamp when chat is enabled
+Chat interface for hired applications
 
-messages
+Message history persistence
 
-id (UUID)
+Real-time message updates via Supabase
 
-application_id (UUID, references applications) // Chat is scoped to a hire
+Auto-generated "You've been hired" messages
 
-sender_id (UUID, references profiles)
+Notification System
 
-content (Text)
+In-app notifications database structure
 
-read (Boolean)
+Real-time badge updates
 
-3. Screen Flow & User Journey
-A. Authentication Stack
+Hire notifications automatically created
 
-WelcomeScreen: App logo, tagline, "Get Started" button.
+Navigation Architecture
 
-SignUpScreen: Email, Password, Role selection (worker/employer), "Log In" link.
+Auth stack → Main tab navigator
 
-LoginScreen: Email, Password, "Sign Up" link.
+Role-appropriate tab displays
 
-ForgotPasswordScreen: (To be built later).
+Clean screen transitions
 
-B. Main App (Tab Navigator)
+🔄 RECENT ENHANCEMENTS
+Enhanced hiring flow with automatic notification creation
 
-HomeTab (Stack)
+Auto-message system for new hires
 
-HomeScreen: List of active jobs in the user's city.
+Improved error handling and null safety
 
-JobDetailScreen: Full job details. "I'm Interested!" button.
+Real-time message subscriptions
 
-EmployerProfileScreen: Public profile view of a job poster.
+Comprehensive user state management
 
-SearchTab
+🎨 UI/UX Features
+Consistent design system with centralized themes
 
-SearchScreen: Search bar + grid of category buttons (e.g., Cleaning, Gardening).
+Responsive layout for various screen sizes
 
-PostJobTab (Stack)
+Intuitive tab-based navigation
 
-PostJobScreen: Multi-step form (What, Where, When, How Much).
+Professional form interfaces
 
-PreviewJobScreen: Confirmation screen before posting.
+Real-time feedback indicators
 
-JobPostedScreen: Success screen.
+📱 Screen Flow & User Journey
+A. Authentication Stack: Welcome → SignUp (with role selection) ↔ Login
 
-MessagesTab (Stack)
+B. Main App (Tab Navigator):
 
-MessagesListScreen: List of conversations (only for hired applications).
+Home: Job listings filtered by user's city
 
-ChatScreen: Message interface. Address sharing happens here.
+Search: Category-based job discovery
 
-ProfileTab (Stack)
+Post Job: Multi-step job creation (employers only)
 
-ProfileScreen: User's own profile. Displays "My Applications" (worker) and "My Job Posts" (employer).
+Messages: Conversation list for hired applications → Chat interface
 
-EditProfileScreen: Edit name, bio, city, etc.
+Profile: User profile management and job history
 
-JobManagementScreen (For employers): View applicants for a job and Hire them (this enables chat).
+🔜 IMMEDIATE NEXT STEPS
+Notification Badge Fix: Ensure red badge appears for new hires/messages
 
-4. Key Features & Logic
-Privacy: Chat and exact address (full_address) are only accessible after an employer explicitly hires a worker (updates applications.status to 'hired').
+Message Read States: Implement read/unread tracking
 
-Location: User's city is set once during profile setup/onboarding. Used as the default filter on the HomeScreen.
+Address Sharing: Secure location sharing after hire
 
-Navigation: Role-based UI changes within the same tabs (e.g., "Post Job" tab disabled for workers).
+UI Polish: Enhance chat bubbles and message indicators
 
-Monetization: Static ad banner planned for the JobDetailScreen (for later implementation).
+Testing: Complete real-world scenario testing
 
-5. Progress Tracking (Last Updated: 2025-09-02)
-✅ COMPLETED
+🎯 Key Differentiators
+Privacy-First: Address sharing only after hire
 
-Project initialized with Expo SDK 53.
+Location-Based: Hyper-local job matching
 
-Core dependencies installed and stabilized.
+Real-Time: Live chat and notifications
 
-GitHub repository linked and initial commit pushed.
+Accessible: Simple UI for non-technical users
 
-PROJECT_SPEC.md created.
+Secure: Comprehensive RLS policies throughout
 
-____________________________________
+📍 Current Focus
+Resolving notification badge display issue and enhancing real-time messaging reliability.
 
-Updated Project Summary for Your Records
-Here's a concise summary of what we've built so far. You can save this to your PROJECT_SPEC.md for future reference:
-
-## Project: cazzyjobs - Status Summary
-*(Last Updated: 2025-09-02)*
-
-🏗️ Architecture:
-
-Expo SDK 53 (React Native 0.79.6)
-
-React Navigation (Native Stack + Bottom Tabs)
-
-Supabase (Auth, Database, Realtime)
-
-Modular src/ structure (components, constants, screens, navigation, lib)
-
-✅ Completed Features:
-
-Authentication Flow:
-
-Welcome Screen (with app branding)
-
-Sign Up Screen (email, password, role selection)
-
-Login Screen
-
-Integrated with Supabase Auth & RLS
-
-Navigation:
-
-Auth Stack (Welcome → SignUp ↔ Login)
-
-Main Tab Navigator (Home, Search, Post, Messages, Profile - placeholders)
-
-Smooth native transitions
-
-Design System:
-
-Centralized theme (colors, sizes, fonts)
-
-Global styles
-
-Consistent UI across all screens
-
-🔐 Security:
-
-Environment variables (.env) setup and secured in .gitignore
-
-Supabase Row Level Security (RLS) policies implemented
-
-Secure authentication flow
-
-📁 Code Structure:
-
-text
-/src
-├── components/          # For reusable UI components
-├── constants/           # theme.js, styles.js
-├── contexts/            # (For future state management)
-├── hooks/               # (For custom hooks like useAuth, useJobs)
-├── lib/                 # supabase.js (client initialization)
-├── navigation/          # AppNavigator.js, MainTabNavigator.js
-└── screens/             # All screen components
-🚀 Next Up: Building the Core App
-
-Home Screen: Fetch and display job listings
-
-Job Detail Screen: View job details and apply
-
-Profile Screen: Complete user profile setup
-
-Post Job Screen: Form for employers to post jobs
-
+This summary captures the complete current state of the project, including all implemented features, technical architecture, and immediate next steps. Perfect for continuing our development seamlessly! 🚀
