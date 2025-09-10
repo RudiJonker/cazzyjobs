@@ -367,16 +367,20 @@ const ChatScreen = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
   chatPartnerText: {
-    textAlign: 'center', 
-    color: COLORS.gray600, 
-    marginBottom: SIZES.padding,
-    fontStyle: 'italic',
-    fontSize: SIZES.small,
-    padding: SIZES.padding,
-    backgroundColor: COLORS.gray100,
-    borderRadius: SIZES.radius,
-    margin: SIZES.padding
-  },
+  textAlign: 'center', 
+  color: COLORS.gray600, 
+  marginBottom: 8,
+  marginTop: Platform.OS === 'ios' ? 4 : 2,
+  fontStyle: 'italic',
+  fontSize: 12,
+  paddingVertical: 6,
+  paddingHorizontal: 16,
+  backgroundColor: COLORS.gray100,
+  borderRadius: 16,
+  marginHorizontal: 16,
+  alignSelf: 'center',    // Center the box itself
+  minWidth: '80%',        // Prevent too narrow on small screens
+},
   messagesList: {
     padding: SIZES.padding,
     paddingBottom: SIZES.padding * 2, // Extra padding at bottom for messages
@@ -401,9 +405,12 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   theirMessageBubble: {
-    backgroundColor: COLORS.gray200,
-    borderBottomLeftRadius: 4,
-  },
+  backgroundColor: '#D1D5DB',  
+  borderBottomLeftRadius: 4,    
+  borderTopLeftRadius: 18,      
+  borderTopRightRadius: 18,       
+  borderBottomRightRadius: 18,  
+},
   messageText: {
     fontSize: SIZES.medium,
     lineHeight: 20,
