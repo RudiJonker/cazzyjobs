@@ -1,24 +1,70 @@
-// src/screens/MessagesListScreen.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useNotifications } from '../hooks/useNotifications';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 const MessagesListScreen = ({ navigation }) => {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { unreadCount, refreshing, refreshNotifications } = useNotifications();
+
+  // Update header with badge and back button
+  useEffect(() => {
+  navigation.setOptions({
+    headerTitle: () => (
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Messages</Text>
+        {unreadCount > 0 && (
+          <View
+            style={{
+              backgroundColor: 'red',
+              borderRadius: 10,
+              width: 20,
+              height: 20,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginLeft: 8,
+            }}>
+            <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </Text>
+          </View>
+        )}
+      </View>
+    ),
+    headerLeft: () => (
+      <TouchableOpacity 
+        onPress={() => navigation.goBack()} 
+        style={{ marginLeft: 15 }}
+      >
+        <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
+      </TouchableOpacity>
+    ),
+    headerRight: () => (
+      <TouchableOpacity 
+        onPress={() => {
+          refreshNotifications();
+          fetchConversations();
+        }} 
+        style={{ marginRight: 15 }}
+      >
+        <Ionicons name="refresh" size={24} color={COLORS.primary} />
+      </TouchableOpacity>
+    )
+  });
+}, [navigation, unreadCount]);
 
   const fetchConversations = async () => {
     try {
       setLoading(true);
       if (!user) return;
 
-      console.log('Fetching conversations for user:', user.id);
-
-      // Fetch all hired applications where the user is involved
       const { data, error } = await supabase
         .from('applications')
         .select(`
@@ -26,6 +72,7 @@ const MessagesListScreen = ({ navigation }) => {
           hired_at,
           worker_id,
           jobs:job_id (
+            id,
             title, 
             employer_id,
             profiles:employer_id (
@@ -46,28 +93,23 @@ const MessagesListScreen = ({ navigation }) => {
         return;
       }
 
-      console.log('Raw applications data:', data);
+      // Filter applications where user is involved
+      const userConversations = data.filter(app => {
+        const isWorker = user.id === app.worker_id;
+        const isEmployer = user.id === app.jobs?.employer_id;
+        return isWorker || isEmployer;
+      });
 
-      // Filter applications on the client side to only include those where user is involved
-      const userConversations = data.filter(app => 
-        app.worker_id === user.id || app.jobs?.employer_id === user.id
-      );
-
-      console.log('Filtered conversations:', userConversations);
-
-      // Format the conversations with proper names
+      // Format the conversations
       const conversationsWithNames = userConversations.map((app) => {
         const isWorker = user.id === app.worker_id;
         
-        // Get the other party's details
         let otherPartyName = 'Unknown';
         if (isWorker) {
-          // Worker viewing → show employer's name
           otherPartyName = app.jobs?.profiles?.full_name || 
                           app.jobs?.profiles?.email || 
                           'Employer';
         } else {
-          // Employer viewing → show worker's name
           otherPartyName = app.workers?.full_name || 
                           app.workers?.email || 
                           'Worker';
@@ -81,7 +123,6 @@ const MessagesListScreen = ({ navigation }) => {
         };
       });
 
-      console.log('Formatted conversations:', conversationsWithNames);
       setConversations(conversationsWithNames);
       
     } catch (err) {
@@ -94,6 +135,22 @@ const MessagesListScreen = ({ navigation }) => {
   useEffect(() => {
     fetchConversations();
   }, [user]);
+
+  // Remove automatic polling - only refresh when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      let isActive = true;
+      
+      if (isActive) {
+        refreshNotifications();
+        fetchConversations();
+      }
+
+      return () => {
+        isActive = false;
+      };
+    }, [user])
+  );
 
   const renderConversation = ({ item }) => (
     <TouchableOpacity
@@ -121,14 +178,20 @@ const MessagesListScreen = ({ navigation }) => {
 
   return (
     <View style={globalStyles.container}>
-      <Text style={globalStyles.screenHeader}>Messages</Text>
-      
       <FlatList
         data={conversations}
         keyExtractor={(item) => item.id}
         renderItem={renderConversation}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={fetchConversations} />
+          <RefreshControl 
+            refreshing={loading || refreshing}
+            onRefresh={() => {
+              refreshNotifications();
+              fetchConversations();
+            }}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
         }
         ListEmptyComponent={
           !loading && (

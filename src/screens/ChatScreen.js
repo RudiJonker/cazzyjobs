@@ -1,10 +1,10 @@
-// src/screens/ChatScreen.js
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useNotifications } from '../hooks/useNotifications';
 
 const ChatScreen = ({ route, navigation }) => {
   const { applicationId } = route.params;
@@ -13,7 +13,9 @@ const ChatScreen = ({ route, navigation }) => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [otherPartyName, setOtherPartyName] = useState('');
-  const hasMarkedAsRead = useRef(false); // To prevent infinite loops
+  const hasMarkedAsRead = useRef(false);
+  
+  const { refreshNotifications } = useNotifications();
 
   // Fetch chat messages
   const fetchMessages = async () => {
@@ -49,7 +51,6 @@ const ChatScreen = ({ route, navigation }) => {
         return;
       }
 
-      // Get application details to find out who the other party is
       const { data: application, error } = await supabase
         .from('applications')
         .select(`
@@ -64,7 +65,6 @@ const ChatScreen = ({ route, navigation }) => {
       const jobTitle = application.jobs?.title || 'Unknown Job';
       navigation.setOptions({ title: jobTitle });
 
-      // Determine who the other party is
       const isWorker = user.id === application.worker_id;
       const otherPartyId = isWorker ? application.jobs?.employer_id : application.worker_id;
 
@@ -82,32 +82,35 @@ const ChatScreen = ({ route, navigation }) => {
     }
   };
 
-  // Mark MESSAGES as read for this chat (CORRECTED FUNCTION)
+  // Mark messages as read - SIMPLIFIED
   const markMessagesAsRead = async () => {
     try {
       if (!user || hasMarkedAsRead.current) return;
       
       console.log('Marking messages as read in chat:', applicationId);
-      hasMarkedAsRead.current = true; // Prevent multiple calls
+      hasMarkedAsRead.current = true;
       
-      // Mark all messages in this chat that aren't sent by the user as read
       const { error } = await supabase
         .from('messages')
         .update({ read: true })
         .eq('application_id', applicationId)
         .eq('read', false)
-        .neq('sender_id', user.id); // Only mark messages from others as read
+        .neq('sender_id', user.id);
 
       if (error) {
         console.error('Error marking messages as read:', error);
-        hasMarkedAsRead.current = false; // Reset on error
-      } else {
-        console.log('Messages marked as read for application:', applicationId);
-        // Don't reset hasMarkedAsRead - we only want to do this once per chat session
+        hasMarkedAsRead.current = false;
+        return;
       }
+
+      console.log('All messages marked as read');
+      
+      // IMMEDIATELY refresh notifications after marking as read
+      refreshNotifications();
+      
     } catch (error) {
       console.error('Error in markMessagesAsRead:', error);
-      hasMarkedAsRead.current = false; // Reset on error
+      hasMarkedAsRead.current = false;
     }
   };
 
@@ -120,7 +123,6 @@ const ChatScreen = ({ route, navigation }) => {
     }
 
     try {
-      // First, get application details to find the other party
       const { data: application } = await supabase
         .from('applications')
         .select('worker_id, jobs(employer_id)')
@@ -129,11 +131,9 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (!application) throw new Error('Application not found');
 
-      // Determine who the recipient is (the other party)
       const isWorker = user.id === application.worker_id;
       const recipientId = isWorker ? application.jobs.employer_id : application.worker_id;
 
-      // Send the message
       const { error: messageError } = await supabase
         .from('messages')
         .insert({
@@ -145,7 +145,6 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (messageError) throw messageError;
 
-      // Create notification for the recipient
       const { error: notifError } = await supabase.rpc('create_notification', {
         p_user_id: recipientId,
         p_title: 'New Message 💬',
@@ -156,23 +155,23 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (notifError) console.error('Notification error:', notifError);
 
-      setNewMessage(''); // Clear input field
+      setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message');
     }
   };
 
-  // Set up real-time subscription for new messages
+  // Set up real-time subscription ONLY for new messages in this chat
   useEffect(() => {
     if (!user) return;
 
     fetchMessages();
     fetchConversationDetails();
 
-    // Set up subscription first, then mark as read
+    // Simple subscription only for new messages in this chat
     const subscription = supabase
-      .channel('messages-changes')
+      .channel('chat-messages')
       .on(
         'postgres_changes',
         {
@@ -182,22 +181,24 @@ const ChatScreen = ({ route, navigation }) => {
           filter: `application_id=eq.${applicationId}`
         },
         (payload) => {
-          // When a new message is inserted, add it to our state
           setMessages(prev => [...prev, payload.new]);
         }
       )
       .subscribe();
 
-    // Mark messages as read after a short delay to ensure subscription is active
+    // Mark messages as read after a short delay
     const markReadTimer = setTimeout(() => {
       markMessagesAsRead();
-    }, 1000);
+    }, 500); // Reduced from 1000ms to 500ms
 
-    // Cleanup subscription on unmount
+    // Cleanup
     return () => {
       clearTimeout(markReadTimer);
       subscription.unsubscribe();
-      hasMarkedAsRead.current = false; // Reset for next time
+      hasMarkedAsRead.current = false;
+      
+      // Refresh notifications when leaving chat
+      refreshNotifications();
     };
   }, [applicationId, user]);
 

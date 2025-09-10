@@ -1,4 +1,3 @@
-// src/navigation/AppNavigator.js
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
@@ -11,7 +10,8 @@ import MainTabNavigator from './MainTabNavigator';
 import JobDetailScreen from '../screens/JobDetailScreen';
 import EmployerApplicationsScreen from '../screens/EmployerApplicationsScreen';
 import PostJobScreen from '../screens/PostJobScreen';
-import ChatScreen from '../screens/ChatScreen'; // <-- Add this import
+import ChatScreen from '../screens/ChatScreen';
+import MessagesListScreen from '../screens/MessagesListScreen'; // ADD THIS IMPORT
 
 const Stack = createNativeStackNavigator();
 
@@ -25,12 +25,9 @@ export default function AppNavigator() {
           animation: 'slide_from_right'
         }}
       >
-        {/* Auth Flow Screens */}
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
-        
-        {/* Main App Screens */}
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
         <Stack.Screen name="JobDetail" component={JobDetailScreen} 
           options={{ headerShown: true, title: 'Job Details', headerBackTitle: 'Back' }}
@@ -41,9 +38,17 @@ export default function AppNavigator() {
         <Stack.Screen name="PostJob" component={PostJobScreen} 
           options={{ headerShown: true, title: 'Post a New Job', headerBackTitle: 'Back' }}
         />
-        {/* Add ChatScreen to main navigator */}
         <Stack.Screen name="Chat" component={ChatScreen} 
           options={{ headerShown: true, title: 'Chat', headerBackTitle: 'Back' }}
+        />
+        {/* ADD THIS NEW SCREEN FOR MESSAGES OUTSIDE OF TABS */}
+        <Stack.Screen name="MessagesStack" component={MessagesListScreen} 
+          options={{ 
+            headerShown: true, 
+            title: 'Messages', 
+            headerBackTitle: 'Back',
+            headerBackVisible: true 
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>
