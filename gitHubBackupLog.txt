@@ -1,0 +1,20 @@
+PS C:\Users\rudij\Documents\Projects\cazzyjobs> git add .
+warning: in the working copy of 'project-tree.md', LF will be replaced by CRLF the next time Git touches it
+PS C:\Users\rudij\Documents\Projects\cazzyjobs> git commit -m "FIX: Notification badge system working with proper back navigation. Badge appears in Messages header and clears after reading messages. Removed automatic polling to save Supabase costs."
+[fix/notification-badge ed4761f] FIX: Notification badge system working with proper back navigation. Badge appears in Messages header and clears after reading messages. Removed automatic polling to save Supabase costs.
+ 7 files changed, 568 insertions(+), 215 deletions(-)
+PS C:\Users\rudij\Documents\Projects\cazzyjobs> git push origin fix/notification-badge      
+Enumerating objects: 24, done.
+Counting objects: 100% (24/24), done.
+Delta compression using up to 6 threads
+Compressing objects: 100% (13/13), done.
+Writing objects: 100% (13/13), 8.07 KiB | 2.69 MiB/s, done.
+Total 13 (delta 8), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (8/8), completed with 8 local objects.
+To https://github.com/RudiJonker/cazzyjobs.git
+   c7438f4..ed4761f  fix/notification-badge -> fix/notification-badge
+PS C:\Users\rudij\Documents\Projects\cazzyjobs> git tag v1.0.0-notification-fix
+>> git push origin v1.0.0-notification-fix
+Total 0 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To https://github.com/RudiJonker/cazzyjobs.git
+ * [new tag]         v1.0.0-notification-fix -> v1.0.0-notification-fix

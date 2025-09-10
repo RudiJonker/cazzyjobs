@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, StyleSheet } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useNotifications';
+import { Ionicons } from '@expo/vector-icons';
 
 const ChatScreen = ({ route, navigation }) => {
   const { applicationId } = route.params;
@@ -13,7 +14,9 @@ const ChatScreen = ({ route, navigation }) => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [otherPartyName, setOtherPartyName] = useState('');
-  const [sending, setSending] = useState(false); // Add sending state
+  const [sending, setSending] = useState(false);
+  const [inputHeight, setInputHeight] = useState(40);
+  const flatListRef = useRef(null);
   const hasMarkedAsRead = useRef(false);
   
   const { refreshNotifications } = useNotifications();
@@ -37,6 +40,12 @@ const ChatScreen = ({ route, navigation }) => {
       if (error) throw error;
 
       setMessages(data || []);
+      
+      setTimeout(() => {
+        if (flatListRef.current && data.length > 0) {
+          flatListRef.current.scrollToEnd({ animated: true });
+        }
+      }, 100);
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
@@ -83,12 +92,11 @@ const ChatScreen = ({ route, navigation }) => {
     }
   };
 
-  // Mark messages as read - SIMPLIFIED
+  // Mark messages as read
   const markMessagesAsRead = async () => {
     try {
       if (!user || hasMarkedAsRead.current) return;
       
-      console.log('Marking messages as read in chat:', applicationId);
       hasMarkedAsRead.current = true;
       
       const { error } = await supabase
@@ -104,9 +112,6 @@ const ChatScreen = ({ route, navigation }) => {
         return;
       }
 
-      console.log('All messages marked as read');
-      
-      // IMMEDIATELY refresh notifications after marking as read
       refreshNotifications();
       
     } catch (error) {
@@ -128,7 +133,7 @@ const ChatScreen = ({ route, navigation }) => {
     let tempMessageId = null;
 
     try {
-      // 1. OPTIMISTIC UI UPDATE: Add message to UI immediately
+      // OPTIMISTIC UI UPDATE
       tempMessageId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const optimisticMessage = {
         id: tempMessageId,
@@ -137,16 +142,20 @@ const ChatScreen = ({ route, navigation }) => {
         sender_id: user.id,
         read: false,
         application_id: applicationId,
-        // Add profile info for display
         profiles: {
           full_name: user.user_metadata?.full_name || 'You'
         }
       };
       
       setMessages(prev => [...prev, optimisticMessage]);
-      setNewMessage(''); // Clear input immediately
+      setNewMessage('');
+      setInputHeight(40);
 
-      // 2. Send to Supabase
+      if (flatListRef.current) {
+        flatListRef.current.scrollToEnd({ animated: true });
+      }
+
+      // Send to Supabase
       const { data: application, error: appError } = await supabase
         .from('applications')
         .select('worker_id, jobs(employer_id)')
@@ -159,7 +168,7 @@ const ChatScreen = ({ route, navigation }) => {
       const isWorker = user.id === application.worker_id;
       const recipientId = isWorker ? application.jobs.employer_id : application.worker_id;
 
-      // 3. Insert into database
+      // Insert into database
       const { error: messageError } = await supabase
         .from('messages')
         .insert({
@@ -171,7 +180,7 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (messageError) throw messageError;
 
-      // 4. Send notification
+      // Send notification
       const { error: notifError } = await supabase.rpc('create_notification', {
         p_user_id: recipientId,
         p_title: 'New Message 💬',
@@ -185,26 +194,32 @@ const ChatScreen = ({ route, navigation }) => {
     } catch (error) {
       console.error('Error sending message:', error);
       
-      // 5. REVERT OPTIMISTIC UPDATE on error
+      // REVERT OPTIMISTIC UPDATE on error
       if (tempMessageId) {
         setMessages(prev => prev.filter(msg => msg.id !== tempMessageId));
       }
       
-      setNewMessage(messageContent); // Restore the message
+      setNewMessage(messageContent);
       Alert.alert('Error', 'Failed to send message. Please try again.');
     } finally {
       setSending(false);
     }
   };
 
-  // Set up real-time subscription ONLY for new messages in this chat
+  // Auto-scroll when new messages arrive
+  useEffect(() => {
+    if (flatListRef.current && messages.length > 0) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages]);
+
+  // Set up real-time subscription
   useEffect(() => {
     if (!user) return;
 
     fetchMessages();
     fetchConversationDetails();
 
-    // Simple subscription only for new messages in this chat
     const subscription = supabase
       .channel('chat-messages')
       .on(
@@ -216,68 +231,64 @@ const ChatScreen = ({ route, navigation }) => {
           filter: `application_id=eq.${applicationId}`
         },
         (payload) => {
-          // Check if this is a duplicate (already added via optimistic update)
           const isDuplicate = messages.some(msg => 
             msg.id === payload.new.id || 
-            msg.id.startsWith('temp-') && 
+            (msg.id.startsWith('temp-') && 
             msg.content === payload.new.content &&
-            msg.sender_id === payload.new.sender_id
+            msg.sender_id === payload.new.sender_id)
           );
           
           if (!isDuplicate) {
             setMessages(prev => [...prev, {
               ...payload.new,
-              profiles: { full_name: 'Other user' } // Temporary until we fetch proper profile
+              profiles: { full_name: 'Other user' }
             }]);
           }
         }
       )
       .subscribe();
 
-    // Mark messages as read after a short delay
     const markReadTimer = setTimeout(() => {
       markMessagesAsRead();
     }, 500);
 
-    // Cleanup
     return () => {
       clearTimeout(markReadTimer);
       subscription.unsubscribe();
       hasMarkedAsRead.current = false;
-      
-      // Refresh notifications when leaving chat
       refreshNotifications();
     };
   }, [applicationId, user]);
 
   const renderMessage = ({ item }) => {
     const isMyMessage = item.sender_id === user?.id;
-    const displayName = item.profiles?.full_name || (isMyMessage ? 'You' : 'Other user');
     
     return (
-      <View style={{
-        alignSelf: isMyMessage ? 'flex-end' : 'flex-start',
-        backgroundColor: isMyMessage ? COLORS.primary : COLORS.gray200,
-        padding: SIZES.padding,
-        borderRadius: SIZES.radius,
-        marginBottom: SIZES.margin,
-        maxWidth: '80%'
-      }}>
-        <Text style={{
-          color: isMyMessage ? COLORS.white : COLORS.gray900,
-          fontSize: SIZES.medium
-        }}>
-          {item.content}
-        </Text>
-        <Text style={{
-          color: isMyMessage ? COLORS.white : COLORS.gray500,
-          fontSize: SIZES.small,
-          marginTop: 4,
-          opacity: 0.7
-        }}>
-          {new Date(item.created_at).toLocaleTimeString()}
-          {item.id.startsWith('temp-') && ' • Sending...'}
-        </Text>
+      <View style={[
+        styles.messageContainer,
+        isMyMessage ? styles.myMessageContainer : styles.theirMessageContainer
+      ]}>
+        <View style={[
+          styles.messageBubble,
+          isMyMessage ? styles.myMessageBubble : styles.theirMessageBubble
+        ]}>
+          <Text style={[
+            styles.messageText,
+            isMyMessage ? styles.myMessageText : styles.theirMessageText
+          ]}>
+            {item.content}
+          </Text>
+          <Text style={[
+            styles.messageTime,
+            isMyMessage ? styles.myMessageTime : styles.theirMessageTime
+          ]}>
+            {new Date(item.created_at).toLocaleTimeString([], { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+            {item.id.startsWith('temp-') && ' • Sending...'}
+          </Text>
+        </View>
       </View>
     );
   };
@@ -297,71 +308,170 @@ const ChatScreen = ({ route, navigation }) => {
       keyboardVerticalOffset={90}
     >
       <View style={[globalStyles.container, { paddingBottom: 0 }]}>
-        <Text style={{ 
-          textAlign: 'center', 
-          color: COLORS.gray500, 
-          marginBottom: SIZES.margin,
-          fontStyle: 'italic'
-        }}>
+        <Text style={styles.chatPartnerText}>
           Chat with {otherPartyName}
         </Text>
 
         <FlatList
+          ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
-          contentContainerStyle={{ padding: SIZES.padding }}
+          contentContainerStyle={styles.messagesList}
           ListEmptyComponent={
-            <View style={{ alignItems: 'center', padding: 20 }}>
-              <Text style={{ color: COLORS.gray500 }}>No messages yet</Text>
-              <Text style={{ color: COLORS.gray500, fontSize: SIZES.small, marginTop: 5, textAlign: 'center' }}>
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No messages yet</Text>
+              <Text style={styles.emptySubtext}>
                 Start the conversation by sending a message below.
               </Text>
             </View>
           }
         />
 
-        <View style={{
-          flexDirection: 'row',
-          padding: SIZES.padding,
-          borderTopWidth: 1,
-          borderTopColor: COLORS.gray200,
-          backgroundColor: COLORS.white
-        }}>
-          <TextInput
-            style={{
-              flex: 1,
-              borderWidth: 1,
-              borderColor: COLORS.gray300,
-              borderRadius: SIZES.radius,
-              padding: SIZES.padding,
-              marginRight: SIZES.margin
-            }}
-            placeholder="Type a message..."
-            value={newMessage}
-            onChangeText={setNewMessage}
-            multiline
-            editable={!sending}
-          />
-          <TouchableOpacity
-            style={{
-              backgroundColor: sending ? COLORS.gray300 : COLORS.primary,
-              padding: SIZES.padding,
-              borderRadius: SIZES.radius,
-              justifyContent: 'center',
-              opacity: sending ? 0.7 : 1
-            }}
-            onPress={sendMessage}
-            disabled={!newMessage.trim() || sending}
-          >
-            <Text style={{ color: COLORS.white, fontWeight: 'bold' }}>
-              {sending ? '...' : 'Send'}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.inputContainer}>
+          <View style={styles.textInputWrapper}>
+            <TextInput
+              style={[
+                styles.textInput,
+                { height: Math.min(inputHeight, 120) }
+              ]}
+              placeholder="Type a message..."
+              value={newMessage}
+              onChangeText={setNewMessage}
+              multiline
+              editable={!sending}
+              onContentSizeChange={(e) => {
+                setInputHeight(e.nativeEvent.contentSize.height);
+              }}
+            />
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                !newMessage.trim() && styles.sendButtonDisabled
+              ]}
+              onPress={sendMessage}
+              disabled={!newMessage.trim() || sending}
+            >
+              <Ionicons 
+                name="arrow-up-circle" 
+                size={34} 
+                color={newMessage.trim() ? COLORS.primary : COLORS.gray300} 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </KeyboardAvoidingView>
   );
 };
+
+const styles = StyleSheet.create({
+  chatPartnerText: {
+    textAlign: 'center', 
+    color: COLORS.gray600, 
+    marginBottom: SIZES.padding,
+    fontStyle: 'italic',
+    fontSize: SIZES.small,
+    padding: SIZES.padding,
+    backgroundColor: COLORS.gray100,
+    borderRadius: SIZES.radius,
+    margin: SIZES.padding
+  },
+  messagesList: {
+    padding: SIZES.padding,
+    paddingBottom: SIZES.padding * 2, // Extra padding at bottom for messages
+  },
+  messageContainer: {
+    marginBottom: SIZES.margin,
+  },
+  myMessageContainer: {
+    alignItems: 'flex-end',
+  },
+  theirMessageContainer: {
+    alignItems: 'flex-start',
+  },
+  messageBubble: {
+    maxWidth: '80%',
+    padding: SIZES.padding,
+    borderRadius: 18,
+    marginBottom: 4,
+  },
+  myMessageBubble: {
+    backgroundColor: COLORS.primary,
+    borderBottomRightRadius: 4,
+  },
+  theirMessageBubble: {
+    backgroundColor: COLORS.gray200,
+    borderBottomLeftRadius: 4,
+  },
+  messageText: {
+    fontSize: SIZES.medium,
+    lineHeight: 20,
+  },
+  myMessageText: {
+    color: COLORS.white,
+  },
+  theirMessageText: {
+    color: COLORS.gray900,
+  },
+  messageTime: {
+    fontSize: 11,
+    marginTop: 4,
+    opacity: 0.7,
+  },
+  myMessageTime: {
+    color: COLORS.white,
+    textAlign: 'right',
+  },
+  theirMessageTime: {
+    color: COLORS.gray600,
+    textAlign: 'left',
+  },
+  emptyContainer: {
+    alignItems: 'center', 
+    padding: 40,
+    paddingBottom: 80, // Extra padding when no messages
+  },
+  emptyText: {
+    color: COLORS.gray600, 
+    fontSize: SIZES.medium,
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    color: COLORS.gray500, 
+    fontSize: SIZES.small, 
+    textAlign: 'center',
+  },
+  inputContainer: {
+    padding: SIZES.padding,
+    paddingBottom: SIZES.padding * 3, // Extra padding at bottom
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray200,
+    backgroundColor: COLORS.white,
+  },
+  textInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: COLORS.gray100,
+    borderRadius: 25,
+    paddingHorizontal: SIZES.padding,
+    paddingVertical: 6,
+    marginHorizontal: 0,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: SIZES.medium,
+    maxHeight: 120,
+    paddingVertical: 8,
+    marginRight: 8,
+  },
+  sendButton: {
+    padding: 6,
+    marginBottom: 4,
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
+  },
+});
 
 export default ChatScreen;

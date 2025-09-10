@@ -1,0 +1,19 @@
+Steps to Backup to GitHub:
+Commit your changes:
+
+bash
+git add .
+git commit -m "FIX: Notification badge system working with proper back navigation. Badge appears in Messages header and clears after reading messages. Removed automatic polling to save Supabase costs."
+Push to your main branch:
+
+bash
+git push origin main
+Or if you want to push to your current branch:
+
+bash
+git push origin fix/notification-badge
+Create a backup tag (optional but recommended):
+
+bash
+git tag v1.0.0-notification-fix
+git push origin v1.0.0-notification-fix
