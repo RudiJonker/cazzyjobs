@@ -13,6 +13,7 @@ const ChatScreen = ({ route, navigation }) => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [otherPartyName, setOtherPartyName] = useState('');
+  const [sending, setSending] = useState(false); // Add sending state
   const hasMarkedAsRead = useRef(false);
   
   const { refreshNotifications } = useNotifications();
@@ -114,37 +115,63 @@ const ChatScreen = ({ route, navigation }) => {
     }
   };
 
-  // Send a new message
+  // Send a new message with OPTIMISTIC UI UPDATE
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || sending) return;
     if (!user) {
       Alert.alert('Error', 'You must be logged in to send messages');
       return;
     }
 
+    setSending(true);
+    const messageContent = newMessage.trim();
+    let tempMessageId = null;
+
     try {
-      const { data: application } = await supabase
+      // 1. OPTIMISTIC UI UPDATE: Add message to UI immediately
+      tempMessageId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const optimisticMessage = {
+        id: tempMessageId,
+        content: messageContent,
+        created_at: new Date().toISOString(),
+        sender_id: user.id,
+        read: false,
+        application_id: applicationId,
+        // Add profile info for display
+        profiles: {
+          full_name: user.user_metadata?.full_name || 'You'
+        }
+      };
+      
+      setMessages(prev => [...prev, optimisticMessage]);
+      setNewMessage(''); // Clear input immediately
+
+      // 2. Send to Supabase
+      const { data: application, error: appError } = await supabase
         .from('applications')
         .select('worker_id, jobs(employer_id)')
         .eq('id', applicationId)
         .single();
 
+      if (appError) throw appError;
       if (!application) throw new Error('Application not found');
 
       const isWorker = user.id === application.worker_id;
       const recipientId = isWorker ? application.jobs.employer_id : application.worker_id;
 
+      // 3. Insert into database
       const { error: messageError } = await supabase
         .from('messages')
         .insert({
           application_id: applicationId,
           sender_id: user.id,
-          content: newMessage.trim(),
+          content: messageContent,
           read: false
         });
 
       if (messageError) throw messageError;
 
+      // 4. Send notification
       const { error: notifError } = await supabase.rpc('create_notification', {
         p_user_id: recipientId,
         p_title: 'New Message 💬',
@@ -155,10 +182,18 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (notifError) console.error('Notification error:', notifError);
 
-      setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message');
+      
+      // 5. REVERT OPTIMISTIC UPDATE on error
+      if (tempMessageId) {
+        setMessages(prev => prev.filter(msg => msg.id !== tempMessageId));
+      }
+      
+      setNewMessage(messageContent); // Restore the message
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -181,7 +216,20 @@ const ChatScreen = ({ route, navigation }) => {
           filter: `application_id=eq.${applicationId}`
         },
         (payload) => {
-          setMessages(prev => [...prev, payload.new]);
+          // Check if this is a duplicate (already added via optimistic update)
+          const isDuplicate = messages.some(msg => 
+            msg.id === payload.new.id || 
+            msg.id.startsWith('temp-') && 
+            msg.content === payload.new.content &&
+            msg.sender_id === payload.new.sender_id
+          );
+          
+          if (!isDuplicate) {
+            setMessages(prev => [...prev, {
+              ...payload.new,
+              profiles: { full_name: 'Other user' } // Temporary until we fetch proper profile
+            }]);
+          }
         }
       )
       .subscribe();
@@ -189,7 +237,7 @@ const ChatScreen = ({ route, navigation }) => {
     // Mark messages as read after a short delay
     const markReadTimer = setTimeout(() => {
       markMessagesAsRead();
-    }, 500); // Reduced from 1000ms to 500ms
+    }, 500);
 
     // Cleanup
     return () => {
@@ -204,6 +252,7 @@ const ChatScreen = ({ route, navigation }) => {
 
   const renderMessage = ({ item }) => {
     const isMyMessage = item.sender_id === user?.id;
+    const displayName = item.profiles?.full_name || (isMyMessage ? 'You' : 'Other user');
     
     return (
       <View style={{
@@ -227,6 +276,7 @@ const ChatScreen = ({ route, navigation }) => {
           opacity: 0.7
         }}>
           {new Date(item.created_at).toLocaleTimeString()}
+          {item.id.startsWith('temp-') && ' • Sending...'}
         </Text>
       </View>
     );
@@ -291,18 +341,22 @@ const ChatScreen = ({ route, navigation }) => {
             value={newMessage}
             onChangeText={setNewMessage}
             multiline
+            editable={!sending}
           />
           <TouchableOpacity
             style={{
-              backgroundColor: COLORS.primary,
+              backgroundColor: sending ? COLORS.gray300 : COLORS.primary,
               padding: SIZES.padding,
               borderRadius: SIZES.radius,
-              justifyContent: 'center'
+              justifyContent: 'center',
+              opacity: sending ? 0.7 : 1
             }}
             onPress={sendMessage}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || sending}
           >
-            <Text style={{ color: COLORS.white, fontWeight: 'bold' }}>Send</Text>
+            <Text style={{ color: COLORS.white, fontWeight: 'bold' }}>
+              {sending ? '...' : 'Send'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
