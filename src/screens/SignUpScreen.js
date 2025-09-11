@@ -1,70 +1,111 @@
-// src/screens/SignUpScreen.js
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
-import { supabase } from '../lib/supabase'; // Add this import
+import { supabase } from '../lib/supabase';
 
 const SignUpScreen = ({ navigation }) => {
-  // State to hold form data
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [userRole, setUserRole] = useState('worker'); // 'worker' or 'employer'
+  const [userRole, setUserRole] = useState('worker');
+  const [loading, setLoading] = useState(false);
+
+  // Check if user already has an account with this role
+  const checkExistingRole = async (email, requestedRole) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_role')
+        .eq('email', email)
+        .single();
+      
+      // If no record found, it's okay to proceed
+      if (error && error.code === 'PGRST116') {
+        return true;
+      }
+      
+      if (error) {
+        throw error;
+      }
+      
+      // If record found with same role, prevent signup
+      if (data && data.user_role === requestedRole) {
+        throw new Error(`You already have a ${requestedRole} account with this email. Please login to your existing account or use a different email address.`);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Role check error:', error);
+      throw error;
+    }
+  };
 
   const handleSignUp = async () => {
-  // Basic validation
-  if (password !== confirmPassword) {
-    alert("Passwords don't match!");
-    return;
-  }
-  if (password.length < 6) {
-    alert("Password must be at least 6 characters!");
-    return;
-  }
-
-  try {
-    console.log("Signing up...");
-    
-    // 1. Create the user with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-    });
-
-    if (authError) {
-      alert("Sign up error: " + authError.message);
+    // Basic validation
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords don't match!");
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters!");
       return;
     }
 
-    // 2. If auth succeeds, create their profile in our 'profiles' table
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .insert([
-        {
-          id: authData.user.id, // Same ID as the auth user
-          user_role: userRole,
-          email: email, // Store email in profile too for easy access
-          // full_name and other fields can be added later
-        }
-      ]);
+    setLoading(true);
 
-    if (profileError) {
-      alert("Profile creation error: " + profileError.message);
-      return;
+    try {
+      console.log("Signing up...");
+      
+      // First check for existing role
+      await checkExistingRole(email, userRole);
+      
+      // 1. Create the user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+      });
+
+      if (authError) {
+        Alert.alert("Sign up error", authError.message);
+        return;
+      }
+
+      // 2. If auth succeeds, create their profile in our 'profiles' table
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: authData.user.id,
+            user_role: userRole,
+            email: email,
+          }
+        ]);
+
+      if (profileError) {
+        Alert.alert("Profile creation error", profileError.message);
+        return;
+      }
+
+      console.log("Sign up successful!", authData);
+      Alert.alert(
+        "Success", 
+        "Account created successfully! Please check your email for verification.",
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('Login'),
+          },
+        ]
+      );
+
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      Alert.alert("Error", error.message);
+    } finally {
+      setLoading(false);
     }
-
-    console.log("Sign up successful!", authData);
-    alert("Account created successfully! Please check your email for verification.");
-    
-    // Navigate to login screen after successful signup
-    navigation.navigate('MainTabs');
-
-  } catch (error) {
-    console.error("Unexpected error:", error);
-    alert("An unexpected error occurred. Please try again.");
-  }
-};
+  };
 
   return (
     <ScrollView contentContainerStyle={[globalStyles.container, { padding: SIZES.padding }]}>
@@ -124,7 +165,7 @@ const SignUpScreen = ({ navigation }) => {
 
       {/* Role Selection */}
       <Text style={{ color: COLORS.gray700, marginBottom: SIZES.margin }}>I want to:</Text>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: SIZES.margin * 2 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: SIZES.margin * 1 }}>
         <TouchableOpacity
           style={{
             flex: 1,
@@ -164,17 +205,20 @@ const SignUpScreen = ({ navigation }) => {
           backgroundColor: COLORS.primary,
           padding: SIZES.padding,
           borderRadius: SIZES.radius,
-          alignItems: 'center'
+          marginTop: 10,
+          alignItems: 'center',
+          opacity: loading ? 0.7 : 1
         }}
         onPress={handleSignUp}
+        disabled={loading}
       >
         <Text style={{ color: COLORS.white, fontSize: SIZES.large, fontWeight: '600' }}>
-          Sign Up
+          {loading ? 'Creating Account...' : 'Sign Up'}
         </Text>
       </TouchableOpacity>
 
       {/* Login Link */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: SIZES.margin * 2 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 20 }}>
         <Text style={{ color: COLORS.gray500, fontSize: SIZES.small }}>
           Already have an account?{' '}
         </Text>
