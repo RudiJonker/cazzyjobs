@@ -1,4 +1,3 @@
-// src/screens/ProfileScreen.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { globalStyles } from '../constants/styles';
@@ -6,7 +5,7 @@ import { COLORS, SIZES } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { getCityFromDeviceLocation } from '../utils/location';
-import PhoneInput from '../components/PhoneInput'; // Add this import
+import PhoneInput from '../components/PhoneInput';
 
 const ProfileScreen = () => {
   const { user } = useAuth();
@@ -18,89 +17,84 @@ const ProfileScreen = () => {
     bio: '',
     phone: ''
   });
-  const [phoneValid, setPhoneValid] = useState(true); // Add phone validation state
+  const [phoneValid, setPhoneValid] = useState(true);
 
-  // Fetch user profile
-const fetchProfile = async () => {
-  try {
-    setLoading(true);
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-      throw error;
-    }
-
-    if (data) {
-      setProfile({
-        full_name: data.full_name || '',
-        city: data.city || '',
-        bio: data.bio || '',
-        phone: data.phone || ''
-      });
-    }
-
-    // If no city set, try to detect it
-    if (!data?.city) {
-      const detectedCity = await getCityFromDeviceLocation();
-      if (detectedCity) {
-        setProfile(prev => ({ ...prev, city: detectedCity }));
+      if (error && error.code !== 'PGRST116') {
+        throw error;
       }
+
+      if (data) {
+        setProfile({
+          full_name: data.full_name || '',
+          city: data.city || '',
+          bio: data.bio || '',
+          phone: data.phone || ''
+        });
+      }
+
+      if (!data?.city) {
+        const detectedCity = await getCityFromDeviceLocation();
+        if (detectedCity) {
+          setProfile(prev => ({ ...prev, city: detectedCity }));
+        }
+      }
+
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      alert('Error loading profile');
+    } finally {
+      setLoading(false);
     }
+  };
 
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-    alert('Error loading profile');
-  } finally {
-    setLoading(false);
-  }
-};
+  const saveProfile = async () => {
+    try {
+      if (profile.phone && !phoneValid) {
+        alert('Please enter a valid phone number');
+        return;
+      }
 
-  // Save profile
-const saveProfile = async () => {
-  try {
-    // Validate phone number if provided
-    if (profile.phone && !phoneValid) {
-      alert('Please enter a valid phone number');
-      return;
+      setSaving(true);
+      
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('user_role')
+        .eq('id', user.id)
+        .single();
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          user_role: existingProfile?.user_role || 'worker',
+          full_name: profile.full_name,
+          city: profile.city,
+          bio: profile.bio,
+          phone: profile.phone,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      alert('Profile saved successfully!');
+      
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Error saving profile: ' + error.message);
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(true);
-    
-    // First, get the current user role to preserve it
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('user_role')
-      .eq('id', user.id)
-      .single();
-
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        user_role: existingProfile?.user_role || 'worker', // Preserve existing role or default
-        full_name: profile.full_name,
-        city: profile.city,
-        bio: profile.bio,
-        phone: profile.phone,
-        updated_at: new Date().toISOString()
-      });
-
-    if (error) throw error;
-
-    alert('Profile saved successfully!');
-    
-  } catch (error) {
-    console.error('Error saving profile:', error);
-    alert('Error saving profile: ' + error.message);
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
   useEffect(() => {
     if (user) {
@@ -117,11 +111,11 @@ const saveProfile = async () => {
   }
 
   return (
-    <ScrollView style={globalStyles.container}>
-      <Text style={globalStyles.screenHeader}>Your Profile</Text>
-      <Text style={{ color: COLORS.gray500, marginBottom: SIZES.margin * 2 }}>
-        Complete your profile to help employers know you better
-      </Text>
+    <ScrollView 
+      style={globalStyles.container}
+      contentContainerStyle={{ paddingBottom: SIZES.padding *6 }}
+    >
+      
 
       {/* Full Name */}
       <Text style={{ color: COLORS.gray700, marginBottom: 5 }}>Full Name</Text>
@@ -155,14 +149,14 @@ const saveProfile = async () => {
         onChangeText={(text) => setProfile({ ...profile, city: text })}
       />
 
-      {/* Phone Input - Replaced with professional component */}
+      {/* Phone Input */}
       <PhoneInput
         value={profile.phone}
         onChangePhone={(phone, isValid) => {
           setProfile({ ...profile, phone });
           setPhoneValid(isValid);
         }}
-        defaultCode="ZA" // Default to South Africa
+        defaultCode="ZA"
       />
 
       {/* Bio */}
@@ -191,7 +185,8 @@ const saveProfile = async () => {
           padding: SIZES.padding,
           borderRadius: SIZES.radius,
           alignItems: 'center',
-          opacity: saving ? 0.6 : 1
+          opacity: saving ? 0.6 : 1,
+          marginBottom: SIZES.padding * 2,
         }}
         onPress={saveProfile}
         disabled={saving}
