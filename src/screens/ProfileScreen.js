@@ -15,14 +15,14 @@ const ProfileScreen = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [phoneValid, setPhoneValid] = useState(true); // Phone validation state
   const [profile, setProfile] = useState({
     full_name: '',
     city: '',
     bio: '',
-    phone: '',
+    phone: '', // Phone included in state
     avatar_url: ''
   });
-  const [phoneValid, setPhoneValid] = useState(true);
   const [profileImageUrl, setProfileImageUrl] = useState('');
 
   const fetchProfile = async () => {
@@ -35,14 +35,21 @@ const ProfileScreen = () => {
         .eq('id', user.id)
         .single();
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      
 
       if (data) {
+        console.log('Fetched profile data:', data);
+        console.log('Profile data from Supabase:', data);
+        console.log('Phone number from Supabase:', data.phone);
         setProfile({
           full_name: data.full_name || '',
           city: data.city || '',
           bio: data.bio || '',
-          phone: data.phone || '',
+          phone: data.phone || '', // Load phone from database
           avatar_url: data.avatar_url || ''
         });
 
@@ -54,10 +61,17 @@ const ProfileScreen = () => {
               .getPublicUrl(data.avatar_url);
             
             setProfileImageUrl(publicUrl);
-            console.log('Public URL:', publicUrl);
           } catch (urlError) {
             console.log('Error getting public URL:', urlError);
           }
+        }
+      }
+
+      // If no city set, try to detect it
+      if (!data?.city) {
+        const detectedCity = await getCityFromDeviceLocation();
+        if (detectedCity) {
+          setProfile(prev => ({ ...prev, city: detectedCity }));
         }
       }
 
@@ -77,7 +91,6 @@ const ProfileScreen = () => {
         return;
       }
 
-      // FIXED: Use the correct MediaTypeOptions approach
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -119,7 +132,7 @@ const ProfileScreen = () => {
           headers: { 
             'Content-Type': mimeType, 
             'Authorization': `Bearer ${session.access_token}`,
-            'x-upsert': 'true' // Allow overwriting
+            'x-upsert': 'true'
           },
           httpMethod: 'POST',
           uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
@@ -151,7 +164,6 @@ const ProfileScreen = () => {
       setProfile(prev => ({ ...prev, avatar_url: fileName }));
       
       Alert.alert('Success', 'Profile picture updated successfully!');
-      console.log('Image uploaded successfully. Public URL:', publicUrl);
 
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -163,6 +175,7 @@ const ProfileScreen = () => {
 
   const saveProfile = async () => {
     try {
+      // Validate phone number if provided (from backup code)
       if (profile.phone && !phoneValid) {
         Alert.alert('Validation Error', 'Please enter a valid phone number');
         return;
@@ -170,6 +183,7 @@ const ProfileScreen = () => {
 
       setSaving(true);
       
+      // First, get the current user role to preserve it (from backup code)
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('user_role')
@@ -180,11 +194,11 @@ const ProfileScreen = () => {
         .from('profiles')
         .upsert({
           id: user.id,
-          user_role: existingProfile?.user_role || 'worker',
+          user_role: existingProfile?.user_role || 'worker', // Preserve existing role
           full_name: profile.full_name,
           city: profile.city,
           bio: profile.bio,
-          phone: profile.phone,
+          phone: profile.phone, // Phone included in save
           avatar_url: profile.avatar_url,
           updated_at: new Date().toISOString()
         });
@@ -236,7 +250,6 @@ const ProfileScreen = () => {
               }}
               onError={(e) => {
                 console.log('Image load error for URL:', profileImageUrl);
-                console.log('Error details:', e.nativeEvent.error);
                 setProfileImageUrl('');
               }}
             />
@@ -292,7 +305,7 @@ const ProfileScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Rest of the form fields */}
+      {/* Full Name */}
       <Text style={globalStyles.label}>Full Name</Text>
       <TextInput
         style={globalStyles.input}
@@ -301,6 +314,7 @@ const ProfileScreen = () => {
         onChangeText={(text) => setProfile({ ...profile, full_name: text })}
       />
 
+      {/* City */}
       <Text style={globalStyles.label}>City</Text>
       <TextInput
         style={globalStyles.input}
@@ -309,6 +323,7 @@ const ProfileScreen = () => {
         onChangeText={(text) => setProfile({ ...profile, city: text })}
       />
 
+      {/* Phone Input - From backup code with proper validation */}
       <PhoneInput
         value={profile.phone}
         onChangePhone={(phone, isValid) => {
@@ -318,6 +333,7 @@ const ProfileScreen = () => {
         defaultCode="ZA"
       />
 
+      {/* Bio */}
       <Text style={[globalStyles.label, { marginTop: SIZES.margin }]}>Bio</Text>
       <TextInput
         style={[globalStyles.input, { height: 100, textAlignVertical: 'top' }]}
@@ -327,6 +343,7 @@ const ProfileScreen = () => {
         multiline
       />
 
+      {/* Save Button */}
       <TouchableOpacity
         style={[globalStyles.button, { opacity: saving ? 0.6 : 1 }]}
         onPress={saveProfile}
