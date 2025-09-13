@@ -23,6 +23,7 @@ const ProfileScreen = () => {
     avatar_url: ''
   });
   const [phoneValid, setPhoneValid] = useState(true);
+  const [profileImageUrl, setProfileImageUrl] = useState('');
 
   const fetchProfile = async () => {
     try {
@@ -37,30 +38,27 @@ const ProfileScreen = () => {
       if (error) throw error;
 
       if (data) {
-        let avatarUrl = data.avatar_url || '';
-        
-        // If we have a file path (not base64), get signed URL
-        if (data.avatar_url && !data.avatar_url.startsWith('data:')) {
-          try {
-            const { data: signedUrlData } = await supabase.storage
-              .from('profile_pic')
-              .createSignedUrl(data.avatar_url, 60 * 60); // 1 hour expiry
-            
-            if (signedUrlData) {
-              avatarUrl = signedUrlData.signedUrl;
-            }
-          } catch (urlError) {
-            console.log('Error getting signed URL:', urlError);
-          }
-        }
-
         setProfile({
           full_name: data.full_name || '',
           city: data.city || '',
           bio: data.bio || '',
           phone: data.phone || '',
-          avatar_url: avatarUrl
+          avatar_url: data.avatar_url || ''
         });
+
+        // If we have a file path, get public URL
+        if (data.avatar_url && !data.avatar_url.startsWith('data:')) {
+          try {
+            const { data: { publicUrl } } = supabase.storage
+              .from('profile_pic')
+              .getPublicUrl(data.avatar_url);
+            
+            setProfileImageUrl(publicUrl);
+            console.log('Public URL:', publicUrl);
+          } catch (urlError) {
+            console.log('Error getting public URL:', urlError);
+          }
+        }
       }
 
     } catch (error) {
@@ -75,10 +73,11 @@ const ProfileScreen = () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission required', 'Please allow access to your photos.');
+        Alert.alert('Permission required', 'Please allow access to your photos to upload a profile picture.');
         return;
       }
 
+      // FIXED: Use the correct MediaTypeOptions approach
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -86,7 +85,7 @@ const ProfileScreen = () => {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets?.[0]?.uri) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         await uploadImage(result.assets[0].uri);
       }
     } catch (error) {
@@ -99,99 +98,89 @@ const ProfileScreen = () => {
     try {
       setUploading(true);
       
-      // Read file as base64
-      const fileContent = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
+      // Get file info
       const fileExt = uri.split('.').pop() || 'jpg';
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const mimeType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
 
-      // Try to upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('profile_pic')
-        .upload(fileName, fileContent, {
-          contentType: 'image/jpeg',
-          upsert: true,
-        });
-
-      if (uploadError) {
-        // Fallback to base64 in database
-        await saveBase64Image(uri);
+      // Use the working approach from your previous code
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        Alert.alert('Error', 'No active session');
         return;
       }
 
-      // Get signed URL for the uploaded file
-      const { data: signedUrlData } = await supabase.storage
-        .from('profile_pic')
-        .createSignedUrl(fileName, 60 * 60 * 24 * 7); // 1 week expiry
+      // Use FileSystem.uploadAsync like in your working code
+      const uploadResponse = await FileSystem.uploadAsync(
+        `https://teoggggwogwnspqygdri.supabase.co/storage/v1/object/profile_pic/${fileName}`,
+        uri,
+        {
+          headers: { 
+            'Content-Type': mimeType, 
+            'Authorization': `Bearer ${session.access_token}`,
+            'x-upsert': 'true' // Allow overwriting
+          },
+          httpMethod: 'POST',
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        }
+      );
+
+      if (uploadResponse.status !== 200) {
+        console.log('Upload failed:', uploadResponse.body);
+        throw new Error(`Upload failed: ${uploadResponse.status}`);
+      }
 
       // Update profile with file path
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
-          avatar_url: fileName, // Store file path, not URL
+          avatar_url: fileName,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
 
-      // Update local state with the signed URL for immediate display
-      if (signedUrlData) {
-        setProfile(prev => ({ ...prev, avatar_url: signedUrlData.signedUrl }));
-      }
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile_pic')
+        .getPublicUrl(fileName);
       
-      Alert.alert('Success', 'Profile picture updated!');
+      setProfileImageUrl(publicUrl);
+      setProfile(prev => ({ ...prev, avatar_url: fileName }));
+      
+      Alert.alert('Success', 'Profile picture updated successfully!');
+      console.log('Image uploaded successfully. Public URL:', publicUrl);
 
     } catch (error) {
       console.error('Error uploading image:', error);
-      Alert.alert('Error', 'Failed to upload image');
+      Alert.alert('Error', 'Failed to upload image: ' + error.message);
     } finally {
       setUploading(false);
-    }
-  };
-
-  const saveBase64Image = async (uri) => {
-    try {
-      const fileContent = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      
-      const base64Data = `data:image/jpeg;base64,${fileContent}`;
-      
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          avatar_url: base64Data,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      setProfile(prev => ({ ...prev, avatar_url: base64Data }));
-      Alert.alert('Success', 'Profile picture saved!');
-      
-    } catch (error) {
-      console.error('Fallback upload failed:', error);
-      Alert.alert('Error', 'Failed to save profile picture');
     }
   };
 
   const saveProfile = async () => {
     try {
       if (profile.phone && !phoneValid) {
-        Alert.alert('Error', 'Please enter a valid phone number');
+        Alert.alert('Validation Error', 'Please enter a valid phone number');
         return;
       }
 
       setSaving(true);
       
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('user_role')
+        .eq('id', user.id)
+        .single();
+
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
+          user_role: existingProfile?.user_role || 'worker',
           full_name: profile.full_name,
           city: profile.city,
           bio: profile.bio,
@@ -206,7 +195,7 @@ const ProfileScreen = () => {
       
     } catch (error) {
       console.error('Error saving profile:', error);
-      Alert.alert('Error', 'Error saving profile');
+      Alert.alert('Error', 'Error saving profile: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -235,9 +224,9 @@ const ProfileScreen = () => {
       {/* Profile Picture Section */}
       <View style={{ alignItems: 'center', marginBottom: SIZES.margin * 2, marginTop: SIZES.margin }}>
         <TouchableOpacity onPress={pickImage} disabled={uploading}>
-          {profile.avatar_url ? (
+          {profileImageUrl ? (
             <Image
-              source={{ uri: profile.avatar_url }}
+              source={{ uri: profileImageUrl }}
               style={{
                 width: 120,
                 height: 120,
@@ -245,35 +234,43 @@ const ProfileScreen = () => {
                 borderWidth: 3,
                 borderColor: COLORS.primary
               }}
-              onError={(e) => console.log('Image load error')}
+              onError={(e) => {
+                console.log('Image load error for URL:', profileImageUrl);
+                console.log('Error details:', e.nativeEvent.error);
+                setProfileImageUrl('');
+              }}
             />
           ) : (
-            <View style={{
-              width: 120,
-              height: 120,
-              borderRadius: 60,
-              backgroundColor: COLORS.gray300,
-              justifyContent: 'center',
-              alignItems: 'center',
-              borderWidth: 2,
-              borderColor: COLORS.gray500
-            }}>
+            <View
+              style={{
+                width: 120,
+                height: 120,
+                borderRadius: 60,
+                backgroundColor: COLORS.gray300,
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderWidth: 2,
+                borderColor: COLORS.gray500
+              }}
+            >
               <Ionicons name="person" size={50} color={COLORS.gray600} />
             </View>
           )}
           
           {uploading && (
-            <View style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              borderRadius: 60,
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}>
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderRadius: 60,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
               <ActivityIndicator color={COLORS.white} />
             </View>
           )}
@@ -284,7 +281,11 @@ const ProfileScreen = () => {
           disabled={uploading}
           style={{ marginTop: SIZES.padding, flexDirection: 'row', alignItems: 'center' }}
         >
-          <Ionicons name={uploading ? "refresh" : "camera"} size={16} color={COLORS.primary} />
+          <Ionicons 
+            name={uploading ? "refresh" : "camera"} 
+            size={16} 
+            color={COLORS.primary} 
+          />
           <Text style={{ color: COLORS.primary, marginLeft: 5, fontWeight: '500' }}>
             {uploading ? 'Uploading...' : 'Change Photo'}
           </Text>
@@ -292,7 +293,7 @@ const ProfileScreen = () => {
       </View>
 
       {/* Rest of the form fields */}
-      <Text style={{ color: COLORS.gray700, marginBottom: 5, fontWeight: '500' }}>Full Name</Text>
+      <Text style={globalStyles.label}>Full Name</Text>
       <TextInput
         style={globalStyles.input}
         placeholder="Enter your full name"
@@ -300,7 +301,7 @@ const ProfileScreen = () => {
         onChangeText={(text) => setProfile({ ...profile, full_name: text })}
       />
 
-      <Text style={{ color: COLORS.gray700, marginBottom: 5, fontWeight: '500' }}>City</Text>
+      <Text style={globalStyles.label}>City</Text>
       <TextInput
         style={globalStyles.input}
         placeholder="Enter your city"
@@ -317,10 +318,10 @@ const ProfileScreen = () => {
         defaultCode="ZA"
       />
 
-      <Text style={{ color: COLORS.gray700, marginBottom: 5, marginTop: SIZES.margin, fontWeight: '500' }}>Bio</Text>
+      <Text style={[globalStyles.label, { marginTop: SIZES.margin }]}>Bio</Text>
       <TextInput
         style={[globalStyles.input, { height: 100, textAlignVertical: 'top' }]}
-        placeholder="Tell employers about yourself..."
+        placeholder="Tell employers about yourself, your skills, and experience..."
         value={profile.bio}
         onChangeText={(text) => setProfile({ ...profile, bio: text })}
         multiline
