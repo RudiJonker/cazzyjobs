@@ -6,35 +6,29 @@ import { COLORS, SIZES } from '../constants/theme';
 const PhoneInput = ({ value, onChangePhone, defaultCode = 'ZA' }) => {
   const phoneInput = useRef(null);
   const [valid, setValid] = useState(true);
-  const [localNumber, setLocalNumber] = useState('');
-  const [componentKey, setComponentKey] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Extract local number from international format and force re-render
+  // Initialize the phone input with the stored value
   useEffect(() => {
-    if (value) {
-      console.log('Raw phone value from props:', value);
+    if (value && phoneInput.current && !isInitialized) {
+      console.log('Initializing phone input with value:', value);
       
-      let extractedLocal = '';
-      if (value.startsWith('+27')) {
-        // Extract local number from international format: +27845275095 → 845275095
-        extractedLocal = value.substring(3);
-        console.log('Extracted local number:', extractedLocal);
-      } else if (value.startsWith('+')) {
-        // Other international formats
-        const digits = value.replace(/\D/g, '');
-        if (digits.length > 2) {
-          extractedLocal = digits.substring(2);
+      // Set the state directly on the component instance
+      // This is a workaround for the library's initialization issues
+      try {
+        if (value.startsWith('+')) {
+          // For international format, let the library handle parsing
+          phoneInput.current.setNumber(value);
+        } else {
+          // For local format, combine with default code
+          phoneInput.current.setNumber(`+27${value}`);
         }
-      } else {
-        // Already local format
-        extractedLocal = value;
+        setIsInitialized(true);
+      } catch (error) {
+        console.log('Error setting phone number:', error);
       }
-      
-      setLocalNumber(extractedLocal);
-      // Force re-render by changing the key
-      setComponentKey(prev => prev + 1);
     }
-  }, [value]);
+  }, [value, isInitialized]);
 
   const handleChange = (formattedValue) => {
     console.log('Formatted value from library:', formattedValue);
@@ -47,9 +41,8 @@ const PhoneInput = ({ value, onChangePhone, defaultCode = 'ZA' }) => {
     <View style={{ marginBottom: SIZES.margin }}>
       <Text style={{ color: COLORS.gray700, marginBottom: 5 }}>Phone Number</Text>
       <RNPhoneInput
-        key={componentKey} // Force re-render when key changes
         ref={phoneInput}
-        defaultValue={localNumber} // Pass ONLY the local part
+        defaultValue={""} // Start with empty to avoid conflicts
         defaultCode={defaultCode}
         layout="first"
         onChangeFormattedText={handleChange}
