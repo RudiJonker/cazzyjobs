@@ -1,0 +1,146 @@
+🗺️ Revised Roadmap Based on Your Feedback
+1. Job Visibility & Duration ✅
+Revised Approach:
+
+Jobs remain visible to hired worker until finalization (not just 24h)
+
+Perfect for jobs scheduled days/weeks later
+
+Worker can reference job details until completion
+
+2. Contact Privacy ✅
+Agreed: No contact details in app - chat only for communication
+
+Maintains privacy and security
+
+Users can share contact details via chat if they choose
+
+No phone/email exposure in profiles
+
+3. Location Granularity ✅
+Implementation:
+
+Enhance current location detection to get suburb + city
+
+Store format: "City, Suburb" (e.g., "Johannesburg, Sandton")
+
+Display full location in job details
+
+Enable search by suburb within city
+
+4. Maps & Navigation ✅
+Google Maps Deep Links (No API needed):
+
+https://maps.google.com/?q=FULL_ADDRESS - opens in user's Google Maps app
+
+Perfect for turn-by-turn navigation
+
+No cost, no API keys, works on all devices
+
+5. Rating System ✅
+Simplified: 1-5 stars only (no comments for now)
+
+Clean and simple
+
+Reduces complexity
+
+Still provides valuable feedback
+
+6. Financials ✅
+Agreed: No payment integration
+
+Pure connection platform only
+
+Financial arrangements happen offline
+
+Reduces liability and complexity
+
+7. Terms & Conditions ✅
+CRITICAL ADDITION:
+
+Add T&C screen during signup
+
+Cover liability, user conduct, privacy
+
+Require acceptance before using app
+
+Legal protection for platform
+
+8. Job Status Management ✅
+Enhanced Status Flow:
+
+active → Open for applications
+
+filled → Hired worker, no new applications
+
+completed → Job done, rated
+
+cancelled → Job cancelled (with notifications)
+
+Cancellation Handling:
+
+Notify hired worker immediately if job cancelled
+
+Prevent "no show" frustrations
+
+Cancel before hiring: simple removal
+
+Cancel after hiring: require notification
+
+9. Job Editing ✅
+Essential Feature:
+
+Edit button on employer's job posts
+
+Allow changes to date, time, details
+
+Notify applicants of significant changes
+
+Prevent complete re-posting for minor edits
+
+🎯 Updated Implementation Priority:
+CRITICAL: Terms & Conditions screen + acceptance
+
+HIGH: Job status management + cancellation notifications
+
+HIGH: Job editing functionality for employers
+
+HIGH: Suburb-level location detection and storage
+
+MEDIUM: Google Maps deep links for navigation
+
+MEDIUM: Applicant detail view (profile pic, bio, rating)
+
+MEDIUM: Employer dashboard redesign
+
+LOW: Rating system (simple stars only)
+
+🔄 Database Changes Needed:
+Add status to jobs table (enum: active, filled, completed, cancelled)
+
+Add suburb field to profiles and jobs
+
+Add hired_worker_id and hired_at to jobs
+
+Add average_rating to profiles (for future rating system)
+
+Add terms_accepted and accepted_date to profiles
+
+📋 Legal Protection Essentials:
+Terms of Service document
+
+Privacy Policy
+
+Liability disclaimer
+
+User conduct guidelines
+
+Data usage policies
+
+💡 User Experience Flow:
+Employer: Post → Edit if needed → Review → Hire → [Cancel if needed] → Complete → Rate
+Worker: Browse → Apply → Get hired → [Get notified if cancelled] → Complete → Get rated
+
+This revised approach maintains your privacy-first, connection-focused vision while adding essential functionality and legal protection! 🛡️
+
+The T&C implementation should be the very next thing - it's crucial for launching properly.

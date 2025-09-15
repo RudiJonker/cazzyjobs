@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert, ActivityIndicator, Linking } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import { supabase } from '../lib/supabase';
@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 
-const ProfileScreen = () => {
+const ProfileScreen = ({ navigation }) => { // ADD navigation prop here
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,8 +38,6 @@ const ProfileScreen = () => {
       if (error && error.code !== 'PGRST116') {
         throw error;
       }
-
-      
 
       if (data) {
         console.log('Fetched profile data:', data);
@@ -215,6 +213,29 @@ const ProfileScreen = () => {
     }
   };
 
+   const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        // ADD THIS NAVIGATION LINE - THE ONLY CHANGE NEEDED
+        navigation.navigate('Login');
+      }
+    } catch (error) {
+      console.error('Sign out error:', error);
+      Alert.alert('Error', 'Failed to sign out. Please try again.');
+    }
+  };
+
+  const viewTerms = () => {
+    Linking.openURL('https://your-domain.com/terms');
+  };
+
+  const viewPrivacy = () => {
+    Linking.openURL('https://your-domain.com/privacy');
+  };
+
   useEffect(() => {
     if (user) {
       fetchProfile();
@@ -351,6 +372,55 @@ const ProfileScreen = () => {
       >
         <Text style={globalStyles.buttonText}>
           {saving ? 'Saving...' : 'Save Profile'}
+        </Text>
+      </TouchableOpacity>
+
+      {/* NEW: Legal Section */}
+      <View style={{ marginTop: SIZES.margin * 2, marginBottom: SIZES.margin * 2 }}>
+        <Text style={{ fontWeight: 'bold', marginBottom: SIZES.margin, fontSize: SIZES.large, color: COLORS.gray700 }}>
+          Legal
+        </Text>
+        
+        <TouchableOpacity 
+          onPress={viewTerms} 
+          style={{ 
+            paddingVertical: SIZES.padding, 
+            borderBottomWidth: 1, 
+            borderBottomColor: COLORS.gray300 
+          }}
+        >
+          <Text style={{ color: COLORS.primary, fontSize: SIZES.medium }}>
+            Terms of Service
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          onPress={viewPrivacy} 
+          style={{ 
+            paddingVertical: SIZES.padding, 
+            borderBottomWidth: 1, 
+            borderBottomColor: COLORS.gray300 
+          }}
+        >
+          <Text style={{ color: COLORS.primary, fontSize: SIZES.medium }}>
+            Privacy Policy
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* NEW: Sign Out Button */}
+       <TouchableOpacity
+        style={{
+          backgroundColor: COLORS.error,
+          padding: SIZES.padding,
+          borderRadius: SIZES.radius,
+          alignItems: 'center',
+          marginTop: SIZES.margin
+        }}
+        onPress={handleSignOut} // This now includes navigation
+      >
+        <Text style={{ color: COLORS.white, fontSize: SIZES.large, fontWeight: '600' }}>
+          Sign Out
         </Text>
       </TouchableOpacity>
     </ScrollView>

@@ -1,3 +1,4 @@
+// src/navigation/AppNavigator.js
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
@@ -6,12 +7,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
+import TermsAcceptanceScreen from '../screens/TermsAcceptanceScreen'; // ADD THIS IMPORT
 import MainTabNavigator from './MainTabNavigator';
 import JobDetailScreen from '../screens/JobDetailScreen';
 import EmployerApplicationsScreen from '../screens/EmployerApplicationsScreen';
 import PostJobScreen from '../screens/PostJobScreen';
 import ChatScreen from '../screens/ChatScreen';
-import MessagesListScreen from '../screens/MessagesListScreen'; // ADD THIS IMPORT
+import MessagesListScreen from '../screens/MessagesListScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -28,6 +30,13 @@ export default function AppNavigator() {
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
+        <Stack.Screen name="Terms" component={TermsAcceptanceScreen} 
+          options={{ 
+            headerShown: true, 
+            title: 'Terms & Privacy',
+            headerBackTitle: 'Back' 
+          }}
+        />
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
         <Stack.Screen name="JobDetail" component={JobDetailScreen} 
           options={{ headerShown: true, title: 'Job Details', headerBackTitle: 'Back' }}
@@ -41,7 +50,6 @@ export default function AppNavigator() {
         <Stack.Screen name="Chat" component={ChatScreen} 
           options={{ headerShown: true, title: 'Chat', headerBackTitle: 'Back' }}
         />
-        {/* ADD THIS NEW SCREEN FOR MESSAGES OUTSIDE OF TABS */}
         <Stack.Screen name="MessagesStack" component={MessagesListScreen} 
           options={{ 
             headerShown: true, 

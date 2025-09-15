@@ -1,246 +1,165 @@
-PROJECT: cazzyjobs - Current Status Summary
-*(Last Updated: 2025-09-09)*
+PROJECT: cazzyjobs - Current Status & Roadmap Summary
+*(Last Updated: 2025-09-12)*
 
 🎯 Core Concept
-A recruitment platform connecting local casual workers (gardening, cleaning, domestic work, construction, etc.) with employers in their city. Targets underserved communities with simplified job matching with privacy-first approach (address sharing only after hire).
+A privacy-focused recruitment platform connecting local casual workers with employers. Address sharing only after hire. No financial transactions - pure connection platform.
 
 🏗️ Tech Stack & Environment
 Framework: Expo SDK 53 (Managed Workflow)
 Frontend: React Native 0.79.6, React 18.2.0
 Navigation: React Navigation v7 (Native Stack + Bottom Tabs)
-Backend: Supabase (Auth, Database, Realtime)
-State Management: React hooks, Context API, AsyncStorage for local data
-Environment: react-native-dotenv for configuration
-Icons: @expo/vector-icons
-Repo: https://github.com/RudiJonker/cazzyjobs (Private)
-Current Branch: fix/notification-badge
+Backend: Supabase (Auth, Database, Storage, Realtime)
+Storage: Supabase Storage bucket 'profile_pic' with public access
+Current Branch: feat/profile-enhancements
+
+📁 Project Directory Structure
+text
+CAZZYJOBS/
+├── components/
+│   ├── DateTimePicker.js
+│   ├── JobCard.js
+│   └── PhoneInput.js
+├── constants/
+│   ├── styles.js
+│   └── theme.js
+├── contexts/
+├── hooks/
+│   ├── useApplications.js
+│   ├── useAuth.js
+│   ├── useJobs.js
+│   └── useNotifications.js
+├── lib/
+│   └── supabase.js
+├── navigation/
+│   ├── AppNavigator.js
+│   ├── MainTabNavigator.js
+│   └── MessagesStack.js.bak
+├── screens/
+│   ├── ChatScreen.js
+│   ├── EmployerApplicationsScreen.js
+│   ├── HomeScreen.js
+│   ├── JobDetailScreen.js
+│   ├── LoginScreen.js
+│   ├── MessagesListScreen.js
+│   ├── MessagesScreen.js
+│   ├── PostJobScreen.js
+│   ├── ProfileScreen.js
+│   ├── SearchScreen.js
+│   ├── SignUpScreen.js
+│   └── WelcomeScreen.js
+└── utils/
+    └── location.js
+📊 Database Schema Extraction Commands
+sql
+-- Get table structure
+SELECT table_name, column_name, data_type, is_nullable, column_default
+FROM information_schema.columns 
+WHERE table_schema = 'public' AND table_name IN ('profiles', 'jobs', 'applications', 'messages', 'notifications')
+ORDER BY table_name, ordinal_position;
 
-📊 Database Schema (Supabase) - Current
-Tables:
+-- Get RLS policies
+SELECT tablename, policyname, permissive, roles, cmd, qual, with_check
+FROM pg_policies 
+WHERE schemaname = 'public' AND tablename IN ('profiles', 'jobs', 'applications', 'messages', 'notifications')
+ORDER BY tablename, policyname;
 
-profiles (extends auth.users): user roles, bio, location, avatar, phone
+-- Get storage policies
+SELECT * FROM storage.buckets WHERE name = 'profile_pic';
+SELECT * FROM storage.policies WHERE bucket_id = 'profile_pic';
+✅ COMPLETED & WORKING FEATURES
+Authentication: Role-based signup (Worker/Employer) with email verification
 
-jobs: job postings with categories, wages, location-based filtering, scheduling
+Role-Based Navigation: Tabs hide/show based on user role
 
-applications: worker applications with status tracking ('pending', 'hired', 'rejected')
+Location Services: Reverse geocoding with city detection
 
-messages: real-time chat system with read/unread tracking
+Phone Input: International formatting + validation + persistence
 
-notifications: in-app notifications system with read states
+Profile System: Complete with Supabase image uploads + public URLs
 
-Key Relationships:
+Job Flow: Post → Apply → Hire → Chat end-to-end working
 
-Chat enabled only when application status = 'hired'
+Real-time Chat: Functional messaging for hired connections
 
-Location-based filtering by user's city (auto-detected via geolocation)
+Notifications: Basic alert system for new messages/hires
 
-Comprehensive RLS policies for data security
+🗺️ ROADMAP & NEXT FEATURES
+🚀 HIGH PRIORITY (Next Implementation):
+Terms & Conditions Screen - Legal protection required before launch
 
-Real-time subscriptions for messages and notifications
+Job Status Management - active → filled → completed → cancelled states
 
-🚀 Current Implementation Status
-✅ COMPLETED & STABLE FEATURES
-Authentication System
+Job Editing - Allow employers to edit posted jobs
 
-Role-based signup (Worker/Employer) with email verification
+Suburb-Level Locations - Enhance location detection beyond city
 
-Secure Supabase Auth with RLS policies
+Applicant Detail View - Modal with profile pic, bio, rating placeholder
 
-Persistent sessions with automatic logout handling
+📋 MEDIUM PRIORITY:
+Google Maps Deep Links - https://maps.google.com/?q=ADDRESS (no API)
 
-Job Management System
+Employer Dashboard - Redesign home screen with stats/quick actions
 
-Multi-step job posting form with scheduling (date/time/wage)
+Search Tab Replacement - Change to "My Applications" for workers
 
-Category-based job browsing and filtering
+Enhanced Search Filters - Category, wage range, suburb-based searching
 
-Location-based filtering (auto-detected city)
+💡 FUTURE ENHANCEMENTS:
+Simple Rating System - 1-5 stars (no comments)
 
-Job status management (active/filled)
+Cancellation Notifications - Alert hired workers if job cancelled
 
-Application System
+Job History - Archive completed jobs (don't delete)
 
-Workers can apply to jobs with single tap
+🛡️ LEGAL & SAFETY REQUIREMENTS
+Terms of Service + Privacy Policy screens
 
-Employers can view applicants with profile information
+Liability disclaimer for offline financial arrangements
 
-Hire/reject functionality with status updates
+User conduct guidelines + data usage policies
 
-Automatic notification creation on hire
+Address privacy: Full address only visible to hired workers
 
-Real-time Chat System
+🔄 RECENT SUCCESSES
+Solved Major Technical Challenges:
 
-Full chat interface for hired applications
+✅ Profile picture uploads to Supabase Storage
 
-Message history persistence in Supabase
+✅ Phone number international formatting + persistence
 
-Real-time message updates via Supabase subscriptions
+✅ Role-based navigation working correctly
 
-Auto-generated "You've been hired" messages
+✅ Location auto-detection reliable
 
-User Management
+✅ Real-time chat functional
 
-Complete profile system with bio, location, contact info
+📊 DATABASE CHANGES NEEDED
+Add status enum to jobs table
 
-Role-based UI adaptations
+Add suburb field to profiles and jobs
 
-Location auto-detection and storage
+Add hired_worker_id and hired_at to jobs
 
-🟡 PARTIALLY COMPLETED / ISSUES
-Notification System
+Add terms_accepted and accepted_date to profiles
 
-✅ In-app notifications database structure
+Add average_rating to profiles (future)
 
-✅ Real-time badge display on Messages tab
+🎯 DESIGN PHILOSOPHY
+Privacy-First: No contact details exposed, address sharing only after hire
+Connection-Focused: No payment processing - financials happen offline
+Simple & Clean: Minimalist rating system, straightforward user flows
 
-✅ Notification creation on new messages and hires
+📱 CURRENT USER JOURNEYS WORKING
+Worker: Signup → Browse jobs → Apply → Get hired → Chat → Complete
+Employer: Signup → Post job → Review applicants → Hire → Chat → Complete
 
-❌ BUG: Badge doesn't clear immediately after reading messages
+⚠️ IMMEDIATE NEXT STEPS
+Implement Terms & Conditions screen (CRITICAL)
 
-❌ BUG: Real-time subscription race conditions
+Add job status management system
 
-Navigation System
+Enable job editing functionality
 
-✅ Auth stack → Main tab navigator flow
+Enhance location detection with suburbs
 
-✅ Role-appropriate tab displays (Employer: Post Job, Worker: Search)
-
-✅ Deep linking to chat screens
-
-⚠️ Occasional navigation state issues
-
-🔄 RECENT DEVELOPMENT FOCUS
-Past 7 Days Focus: Notification Badge System
-
-Implemented message read/unread tracking in database
-
-Added real-time subscription for badge updates
-
-Created badge context for global state management
-
-Implemented manual refresh mechanisms
-
-Current Challenge: Race conditions in real-time subscriptions causing badge persistence
-
-🎨 UI/UX CURRENT STATE
-Working Features:
-
-Consistent design system with centralized themes
-
-Responsive layout for various screen sizes
-
-Intuitive tab-based navigation
-
-Professional form interfaces with validation
-
-Real-time feedback indicators
-
-Needs Polish:
-
-Chat bubble styling improvements
-
-Message read indicators
-
-Notification list UI
-
-Loading state enhancements
-
-📱 Screen Flow & User Journey
-A. Authentication Stack: Welcome → SignUp (role selection) ↔ Login
-B. Main App (Tab Navigator):
-
-Home: Job listings filtered by user's city (WORKING)
-
-Search: Category-based job discovery (PLACEHOLDER)
-
-Post Job: Multi-step job creation (employers only - WORKING)
-
-Messages: Conversation list → Chat interface (WORKING, BADGE BUG)
-
-Profile: User profile management (WORKING)
-
-🔍 TECHNICAL ISSUE ANALYSIS: Notification Badge
-Root Cause: Race conditions between:
-
-Database update operations (marking messages as read)
-
-Real-time subscription events
-
-State management updates
-
-Current Symptoms:
-
-Badge shows correct count initially
-
-Messages properly marked as read in database
-
-Badge doesn't update in real-time without logout/login
-
-Manual refresh works but not automatic
-
-Files Involved in Badge System:
-
-src/hooks/useNotifications.js - Badge counting logic
-
-src/screens/ChatScreen.js - Message read marking
-
-src/navigation/MainTabNavigator.js - Badge display
-
-src/screens/MessagesListScreen.js - Refresh handling
-
-src/contexts/BadgeContext.js - Global state (currently removed)
-
-🎯 Key Differentiators
-Privacy-First: Address sharing only after hire
-Location-Based: Hyper-local job matching via auto-detection
-Real-Time: Live chat and notifications (partially working)
-Accessible: Simple UI for non-technical users
-Secure: Comprehensive RLS policies throughout
-
-📍 Immediate Focus & Next Steps
-CRITICAL: Resolve notification badge race condition
-HIGH PRIORITY:
-
-Fix real-time subscription logic in useNotifications.js
-
-Implement proper cleanup and state synchronization
-
-Add retry mechanisms for database operations
-
-Enhance error handling for edge cases
-
-MEDIUM PRIORITY:
-
-Message read states and indicators
-
-Address sharing after hire
-
-UI polish for chat interface
-
-Testing across network conditions
-
-📋 Files Needed for Next Session
-Please have these files ready for the badge fix:
-
-src/hooks/useNotifications.js
-
-src/screens/ChatScreen.js
-
-src/navigation/MainTabNavigator.js
-
-src/screens/MessagesListScreen.js
-
-src/lib/supabase.js (for configuration check)
-
-Current error logs and console output
-
-🔄 Recovery Plan
-Revert to stable branch (git checkout stable-chat-working)
-
-Analyze current badge approach vs. simpler solutions
-
-Implement periodic polling instead of complex real-time
-
-Test thoroughly before re-enabling real-time features
-
-This summary captures the complete current state with focus on the notification badge challenge. The foundation is solid - we just need to resolve the timing issues in the real-time subscriptions! 🚀
+This summary captures the complete project structure, database schema, and the clear path forward focusing on essential features and legal compliance! 🚀 
