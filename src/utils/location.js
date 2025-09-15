@@ -22,14 +22,19 @@ export const getCityFromDeviceLocation = async () => {
       accuracy: Location.Accuracy.Low, // Better battery life
     });
 
-    // 3. Reverse geocode to get city name
+    // 3. Reverse geocode to get city name - ADD ERROR HANDLING
     console.log("Reverse geocoding coordinates...");
     let geocode = await Location.reverseGeocodeAsync({
       latitude: location.coords.latitude,
       longitude: location.coords.longitude
     });
 
-    const city = geocode[0]?.city;
+    if (!geocode || geocode.length === 0) {
+      console.log("No geocode results found");
+      return null;
+    }
+
+    const city = geocode[0]?.city || geocode[0]?.region || geocode[0]?.subregion;
     console.log("Detected city:", city);
     
     return city || null;

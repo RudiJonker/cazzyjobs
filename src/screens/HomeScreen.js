@@ -5,81 +5,47 @@ import { useNavigation } from '@react-navigation/native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import JobCard from '../components/JobCard';
-import { getCityFromDeviceLocation } from '../utils/location';
 import { useJobs } from '../hooks/useJobs';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 
-// Temporary mock data - we'll replace with real data later
-const mockJobs = [
-  {
-    id: '1',
-    title: 'Help move furniture',
-    proposed_wage: 150,
-    category: 'Moving',
-    job_city: 'Pretoria',
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2', 
-    title: 'Garden cleaning and weeding',
-    proposed_wage: 200,
-    category: 'Gardening',
-    job_city: 'Johannesburg',
-    created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    title: 'House cleaning for party',
-    proposed_wage: 300,
-    category: 'Cleaning',
-    job_city: 'Cape Town',
-    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
 const HomeScreen = () => {
   const navigation = useNavigation();
-  const [detectedCity, setDetectedCity] = useState(null);
+  const [userCity, setUserCity] = useState('Loading...');
   const { jobs, loading, error, refetch } = useJobs();
   const { user } = useAuth();
   const [userRole, setUserRole] = useState(null);
   const [roleLoading, setRoleLoading] = useState(true);
 
-  // Fetch user role from profile
+  // Fetch user role and city from profile
   useEffect(() => {
-    const fetchUserRole = async () => {
+    const fetchUserData = async () => {
       if (user) {
         try {
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('user_role')
+            .select('user_role, city')
             .eq('id', user.id)
             .single();
           
           if (!profileError) {
             setUserRole(profile?.user_role);
+            setUserCity(profile?.city || 'Your area');
           }
         } catch (err) {
-          console.error('Error fetching user role:', err);
+          console.error('Error fetching user data:', err);
+          setUserCity('Your area');
         } finally {
           setRoleLoading(false);
         }
       } else {
         setRoleLoading(false);
+        setUserCity('Your area');
       }
     };
     
-    fetchUserRole();
+    fetchUserData();
   }, [user]);
-
-  useEffect(() => {
-    const detectCity = async () => {
-      const city = await getCityFromDeviceLocation();
-      setDetectedCity(city);
-    };
-    detectCity();
-  }, []);
 
   const handleJobPress = (job) => {
     navigation.navigate('JobDetail', { job });
@@ -160,7 +126,7 @@ const HomeScreen = () => {
         <Text style={{ fontSize: SIZES.xLarge, fontWeight: 'bold', color: COLORS.primary }}>cazzyjobs</Text>
         <View style={{ padding: 5, backgroundColor: COLORS.gray100, borderRadius: SIZES.radius }}>
           <Text style={{ color: COLORS.gray700, fontSize: SIZES.small }}>
-            {detectedCity ? `📍 ${detectedCity}` : '🌤️ 24°C'}
+            📍 {userCity}
           </Text>
         </View>
       </View>
@@ -193,7 +159,7 @@ const HomeScreen = () => {
         }
         ListEmptyComponent={
           <View style={{ alignItems: 'center', padding: 20 }}>
-            <Text style={{ color: COLORS.gray500 }}>No jobs found in your area</Text>
+            <Text style={{ color: COLORS.gray500 }}>No jobs found in {userCity}</Text>
           </View>
         }
       />

@@ -1,10 +1,11 @@
 // src/screens/TermsAcceptanceScreen.js
 import React, { useState } from 'react';
-import { View, ScrollView, Alert, Linking, TouchableOpacity, Text } from 'react-native';
+import { View, ScrollView, Alert, Linking, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import { supabase } from '../lib/supabase';
-import { Ionicons } from '@expo/vector-icons'; // Using Expo Icons instead of react-native-paper
+import { getCityFromDeviceLocation } from '../utils/location'; // ADD THIS IMPORT
+import { Ionicons } from '@expo/vector-icons';
 
 const TermsAcceptanceScreen = ({ route, navigation }) => {
   const { email, password, userRole } = route.params;
@@ -22,7 +23,17 @@ const TermsAcceptanceScreen = ({ route, navigation }) => {
     try {
       console.log("Finalizing sign up...");
       
-      // 1. Create the user with Supabase Auth
+      // 1. FIRST: Detect user's location
+      let userCity = 'Unknown';
+      try {
+        userCity = await getCityFromDeviceLocation();
+        console.log("Detected user city during signup:", userCity);
+      } catch (locationError) {
+        console.error("Location detection during signup failed:", locationError);
+        // Continue with 'Unknown' as city
+      }
+      
+      // 2. Create the user with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email,
         password: password,
@@ -34,7 +45,7 @@ const TermsAcceptanceScreen = ({ route, navigation }) => {
         return;
       }
 
-      // 2. Create their profile with terms acceptance
+      // 3. Create their profile with terms acceptance AND location
       const { error: profileError } = await supabase
         .from('profiles')
         .insert([
@@ -42,6 +53,7 @@ const TermsAcceptanceScreen = ({ route, navigation }) => {
             id: authData.user.id,
             user_role: userRole,
             email: email,
+            city: userCity, // ← SAVE THE DETECTED CITY
             terms_accepted: true,
             terms_accepted_at: new Date().toISOString(),
           }
@@ -164,9 +176,13 @@ const TermsAcceptanceScreen = ({ route, navigation }) => {
           marginTop: 'auto'
         }}
       >
-        <Text style={{ color: COLORS.white, fontSize: SIZES.large, fontWeight: '600' }}>
-          {loading ? 'Creating Account...' : 'Accept & Create Account'}
-        </Text>
+        {loading ? (
+          <ActivityIndicator color={COLORS.white} />
+        ) : (
+          <Text style={{ color: COLORS.white, fontSize: SIZES.large, fontWeight: '600' }}>
+            Accept & Create Account
+          </Text>
+        )}
       </TouchableOpacity>
     </View>
   );

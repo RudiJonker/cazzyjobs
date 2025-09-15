@@ -1,71 +1,103 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text } from 'react-native';
-import RNPhoneInput from 'react-native-phone-number-input';
+// src/components/PhoneInput.js
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, ActivityIndicator } from 'react-native';
 import { COLORS, SIZES } from '../constants/theme';
+import { getCachedCountryCallingCode } from '../utils/countryCodes';
 
-const PhoneInput = ({ value, onChangePhone, defaultCode = 'ZA' }) => {
-  const phoneInput = useRef(null);
+const PhoneInput = ({ value, onChangePhone, countryCode = 'ZA' }) => {
+  const [localNumber, setLocalNumber] = useState('');
   const [valid, setValid] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [callingCode, setCallingCode] = useState('+27');
+  const [loadingCode, setLoadingCode] = useState(true);
 
-  // Initialize the phone input with the stored value
+  // Load country calling code
   useEffect(() => {
-    if (value && phoneInput.current && !isInitialized) {
-      console.log('Initializing phone input with value:', value);
-      
-      // Set the state directly on the component instance
-      // This is a workaround for the library's initialization issues
+    const loadCallingCode = async () => {
       try {
-        if (value.startsWith('+')) {
-          // For international format, let the library handle parsing
-          phoneInput.current.setNumber(value);
-        } else {
-          // For local format, combine with default code
-          phoneInput.current.setNumber(`+27${value}`);
-        }
-        setIsInitialized(true);
+        setLoadingCode(true);
+        const code = await getCachedCountryCallingCode(countryCode);
+        setCallingCode(code);
       } catch (error) {
-        console.log('Error setting phone number:', error);
+        console.error('Error loading calling code:', error);
+        setCallingCode('+27');
+      } finally {
+        setLoadingCode(false);
+      }
+    };
+
+    loadCallingCode();
+  }, [countryCode]);
+
+  // Extract local part from stored international number
+  useEffect(() => {
+    if (value && callingCode) {
+      console.log('Raw phone value from props:', value);
+      
+      if (value.startsWith(callingCode)) {
+        const localPart = value.substring(callingCode.length);
+        setLocalNumber(localPart);
+      } else {
+        setLocalNumber(value); // Fallback
       }
     }
-  }, [value, isInitialized]);
+  }, [value, callingCode]);
 
-  const handleChange = (formattedValue) => {
-    console.log('Formatted value from library:', formattedValue);
-    const checkValid = phoneInput.current?.isValidNumber(formattedValue);
-    setValid(checkValid || false);
-    onChangePhone(formattedValue, checkValid);
+  const handleChange = (text) => {
+    // Remove any non-digit characters
+    const digitsOnly = text.replace(/\D/g, '');
+    setLocalNumber(digitsOnly);
+    
+    // Basic validation
+    const isValid = digitsOnly.length >= 7; // Minimum reasonable length
+    setValid(isValid);
+    
+    // Format for storage: country code + local number
+    const formattedNumber = `${callingCode}${digitsOnly}`;
+    
+    console.log('Formatted phone number:', formattedNumber);
+    onChangePhone(formattedNumber, isValid);
   };
 
   return (
     <View style={{ marginBottom: SIZES.margin }}>
       <Text style={{ color: COLORS.gray700, marginBottom: 5 }}>Phone Number</Text>
-      <RNPhoneInput
-        ref={phoneInput}
-        defaultValue={""} // Start with empty to avoid conflicts
-        defaultCode={defaultCode}
-        layout="first"
-        onChangeFormattedText={handleChange}
-        containerStyle={{
-          width: '100%',
-          borderRadius: SIZES.radius,
-          borderWidth: 1,
-          borderColor: valid ? COLORS.gray500 : COLORS.error,
-        }}
-        textContainerStyle={{
-          backgroundColor: COLORS.white,
-          borderRadius: SIZES.radius,
-        }}
-        textInputStyle={{
-          color: COLORS.gray900,
-          fontSize: SIZES.medium,
-        }}
-        codeTextStyle={{
-          color: COLORS.gray900,
-          fontSize: SIZES.medium,
-        }}
-      />
-      {!valid && value && (
+      
+      <View style={{ 
+        flexDirection: 'row', 
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: valid ? COLORS.gray500 : COLORS.error,
+        borderRadius: SIZES.radius,
+        backgroundColor: COLORS.white,
+      }}>
+        {loadingCode ? (
+          <ActivityIndicator size="small" color={COLORS.primary} style={{ padding: SIZES.padding }} />
+        ) : (
+          <Text style={{ 
+            padding: SIZES.padding,
+            color: COLORS.gray700,
+            fontWeight: '600'
+          }}>
+            {callingCode}
+          </Text>
+        )}
+        
+        <TextInput
+          style={{
+            flex: 1,
+            padding: SIZES.padding,
+            color: COLORS.gray900,
+            fontSize: SIZES.medium,
+          }}
+          placeholder="Enter your phone number"
+          value={localNumber}
+          onChangeText={handleChange}
+          keyboardType="phone-pad"
+          maxLength={15}
+        />
+      </View>
+      
+      {!valid && localNumber && (
         <Text style={{ color: COLORS.error, fontSize: SIZES.small, marginTop: 5 }}>
           Please enter a valid phone number
         </Text>

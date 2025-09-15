@@ -1,85 +1,66 @@
+// src/screens/ProfileScreen.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert, ActivityIndicator, Linking } from 'react-native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { getCityFromDeviceLocation } from '../utils/location';
+import { getDeviceLocationDetails } from '../utils/location'; // Updated import
 import PhoneInput from '../components/PhoneInput';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 
-const ProfileScreen = ({ navigation }) => { // ADD navigation prop here
+const ProfileScreen = ({ navigation }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [phoneValid, setPhoneValid] = useState(true); // Phone validation state
+  const [phoneValid, setPhoneValid] = useState(true);
+  const [userCountryCode, setUserCountryCode] = useState('ZA'); // For phone input
   const [profile, setProfile] = useState({
     full_name: '',
     city: '',
     bio: '',
-    phone: '', // Phone included in state
+    phone: '',
     avatar_url: ''
   });
   const [profileImageUrl, setProfileImageUrl] = useState('');
 
   const fetchProfile = async () => {
-    try {
-      setLoading(true);
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+  try {
+    setLoading(true);
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (data) {
-        console.log('Fetched profile data:', data);
-        console.log('Profile data from Supabase:', data);
-        console.log('Phone number from Supabase:', data.phone);
-        setProfile({
-          full_name: data.full_name || '',
-          city: data.city || '',
-          bio: data.bio || '',
-          phone: data.phone || '', // Load phone from database
-          avatar_url: data.avatar_url || ''
-        });
-
-        // If we have a file path, get public URL
-        if (data.avatar_url && !data.avatar_url.startsWith('data:')) {
-          try {
-            const { data: { publicUrl } } = supabase.storage
-              .from('profile_pic')
-              .getPublicUrl(data.avatar_url);
-            
-            setProfileImageUrl(publicUrl);
-          } catch (urlError) {
-            console.log('Error getting public URL:', urlError);
-          }
-        }
-      }
-
-      // If no city set, try to detect it
-      if (!data?.city) {
-        const detectedCity = await getCityFromDeviceLocation();
-        if (detectedCity) {
-          setProfile(prev => ({ ...prev, city: detectedCity }));
-        }
-      }
-
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      Alert.alert('Error', 'Error loading profile');
-    } finally {
-      setLoading(false);
+    if (error && error.code !== 'PGRST116') {
+      throw error;
     }
-  };
+
+    if (data) {
+      console.log('Fetched profile data:', data);
+      setProfile({
+        full_name: data.full_name || '',
+        city: data.city || 'Unknown', // Use stored city
+        bio: data.bio || '',
+        phone: data.phone || '',
+        avatar_url: data.avatar_url || ''
+      });
+
+      // ... existing image code ...
+    }
+
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    Alert.alert('Error', 'Error loading profile');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const pickImage = async () => {
     try {
@@ -173,7 +154,7 @@ const ProfileScreen = ({ navigation }) => { // ADD navigation prop here
 
   const saveProfile = async () => {
     try {
-      // Validate phone number if provided (from backup code)
+      // Validate phone number if provided
       if (profile.phone && !phoneValid) {
         Alert.alert('Validation Error', 'Please enter a valid phone number');
         return;
@@ -181,7 +162,7 @@ const ProfileScreen = ({ navigation }) => { // ADD navigation prop here
 
       setSaving(true);
       
-      // First, get the current user role to preserve it (from backup code)
+      // First, get the current user role to preserve it
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('user_role')
@@ -192,11 +173,11 @@ const ProfileScreen = ({ navigation }) => { // ADD navigation prop here
         .from('profiles')
         .upsert({
           id: user.id,
-          user_role: existingProfile?.user_role || 'worker', // Preserve existing role
+          user_role: existingProfile?.user_role || 'worker',
           full_name: profile.full_name,
           city: profile.city,
           bio: profile.bio,
-          phone: profile.phone, // Phone included in save
+          phone: profile.phone,
           avatar_url: profile.avatar_url,
           updated_at: new Date().toISOString()
         });
@@ -213,13 +194,12 @@ const ProfileScreen = ({ navigation }) => { // ADD navigation prop here
     }
   };
 
-   const handleSignOut = async () => {
+  const handleSignOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
         Alert.alert('Error', error.message);
       } else {
-        // ADD THIS NAVIGATION LINE - THE ONLY CHANGE NEEDED
         navigation.navigate('Login');
       }
     } catch (error) {
@@ -344,14 +324,14 @@ const ProfileScreen = ({ navigation }) => { // ADD navigation prop here
         onChangeText={(text) => setProfile({ ...profile, city: text })}
       />
 
-      {/* Phone Input - From backup code with proper validation */}
+      {/* Phone Input - Updated with country code */}
       <PhoneInput
         value={profile.phone}
         onChangePhone={(phone, isValid) => {
           setProfile({ ...profile, phone });
           setPhoneValid(isValid);
         }}
-        defaultCode="ZA"
+        countryCode={userCountryCode}
       />
 
       {/* Bio */}
@@ -375,7 +355,7 @@ const ProfileScreen = ({ navigation }) => { // ADD navigation prop here
         </Text>
       </TouchableOpacity>
 
-      {/* NEW: Legal Section */}
+      {/* Legal Section */}
       <View style={{ marginTop: SIZES.margin * 2, marginBottom: SIZES.margin * 2 }}>
         <Text style={{ fontWeight: 'bold', marginBottom: SIZES.margin, fontSize: SIZES.large, color: COLORS.gray700 }}>
           Legal
@@ -408,8 +388,8 @@ const ProfileScreen = ({ navigation }) => { // ADD navigation prop here
         </TouchableOpacity>
       </View>
 
-      {/* NEW: Sign Out Button */}
-       <TouchableOpacity
+      {/* Sign Out Button */}
+      <TouchableOpacity
         style={{
           backgroundColor: COLORS.error,
           padding: SIZES.padding,
@@ -417,7 +397,7 @@ const ProfileScreen = ({ navigation }) => { // ADD navigation prop here
           alignItems: 'center',
           marginTop: SIZES.margin
         }}
-        onPress={handleSignOut} // This now includes navigation
+        onPress={handleSignOut}
       >
         <Text style={{ color: COLORS.white, fontSize: SIZES.large, fontWeight: '600' }}>
           Sign Out
