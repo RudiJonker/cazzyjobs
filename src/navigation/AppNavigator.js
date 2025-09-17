@@ -14,6 +14,7 @@ import EmployerApplicationsScreen from '../screens/EmployerApplicationsScreen';
 import PostJobScreen from '../screens/PostJobScreen';
 import ChatScreen from '../screens/ChatScreen';
 import MessagesListScreen from '../screens/MessagesListScreen';
+import EditJobScreen from '../screens/EditJobScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +57,13 @@ export default function AppNavigator() {
             title: 'Messages', 
             headerBackTitle: 'Back',
             headerBackVisible: true 
+          }}
+        />
+        <Stack.Screen name="EditJob" component={EditJobScreen} 
+          options={{ 
+          headerShown: true, 
+          title: 'Edit Job',
+          headerBackTitle: 'Back' 
           }}
         />
       </Stack.Navigator>

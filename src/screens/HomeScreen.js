@@ -5,84 +5,70 @@ import { useNavigation } from '@react-navigation/native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import JobCard from '../components/JobCard';
-import { getCityFromDeviceLocation } from '../utils/location';
 import { useJobs } from '../hooks/useJobs';
+import { useEmployerJobs } from '../hooks/useEmployerJobs';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 
-// Temporary mock data - we'll replace with real data later
-const mockJobs = [
-  {
-    id: '1',
-    title: 'Help move furniture',
-    proposed_wage: 150,
-    category: 'Moving',
-    job_city: 'Pretoria',
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2', 
-    title: 'Garden cleaning and weeding',
-    proposed_wage: 200,
-    category: 'Gardening',
-    job_city: 'Johannesburg',
-    created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    title: 'House cleaning for party',
-    proposed_wage: 300,
-    category: 'Cleaning',
-    job_city: 'Cape Town',
-    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
 const HomeScreen = () => {
   const navigation = useNavigation();
-  const [detectedCity, setDetectedCity] = useState(null);
+  const [userCity, setUserCity] = useState('Loading...');
   const { jobs, loading, error, refetch } = useJobs();
+  const { jobs: employerJobs, loading: employerLoading, error: employerError, refetch: refetchEmployerJobs } = useEmployerJobs();
   const { user } = useAuth();
   const [userRole, setUserRole] = useState(null);
   const [roleLoading, setRoleLoading] = useState(true);
+  const [filteredJobs, setFilteredJobs] = useState([]);
 
-  // Fetch user role from profile
+  // Fetch user role and city from profile
   useEffect(() => {
-    const fetchUserRole = async () => {
+    const fetchUserData = async () => {
       if (user) {
         try {
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('user_role')
+            .select('user_role, city')
             .eq('id', user.id)
             .single();
           
           if (!profileError) {
             setUserRole(profile?.user_role);
+            setUserCity(profile?.city || 'Your area');
           }
         } catch (err) {
-          console.error('Error fetching user role:', err);
+          console.error('Error fetching user data:', err);
+          setUserCity('Your area');
         } finally {
           setRoleLoading(false);
         }
       } else {
         setRoleLoading(false);
+        setUserCity('Your area');
       }
     };
     
-    fetchUserRole();
+    fetchUserData();
   }, [user]);
 
+  // Filter jobs by user's city
   useEffect(() => {
-    const detectCity = async () => {
-      const city = await getCityFromDeviceLocation();
-      setDetectedCity(city);
-    };
-    detectCity();
-  }, []);
+    if (jobs && userCity && userCity !== 'Loading...' && userCity !== 'Your area') {
+      const jobsInCity = jobs.filter(job => 
+        job.job_city && job.job_city.toLowerCase() === userCity.toLowerCase()
+      );
+      setFilteredJobs(jobsInCity);
+      console.log(`Filtered ${jobsInCity.length} jobs in ${userCity}`);
+    } else {
+      setFilteredJobs(jobs || []);
+    }
+  }, [jobs, userCity]);
 
   const handleJobPress = (job) => {
     navigation.navigate('JobDetail', { job });
+  };
+
+  const handleEditJob = (job) => {
+    navigation.navigate('EditJob', { job });
   };
 
   // Show loading while detecting role
@@ -94,7 +80,7 @@ const HomeScreen = () => {
     );
   }
 
-  // EMPLOYER VIEW - Show applications instead of jobs
+  // EMPLOYER VIEW - Show dashboard with posted jobs
   if (userRole === 'employer') {
     return (
       <View style={globalStyles.container}>
@@ -105,15 +91,12 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        <Text style={globalStyles.screenHeader}>Your Job Applications</Text>
-        <Text style={{ color: COLORS.gray500, marginBottom: SIZES.margin * 2, textAlign: 'center' }}>
-          You're seeing this because you're registered as an employer.
-          We'll build your dashboard here soon.
-        </Text>
-
+        <Text style={globalStyles.screenHeader}>Your Dashboard</Text>
+        
+       
         <TouchableOpacity
           style={{
-            backgroundColor: COLORS.primary,
+            backgroundColor: COLORS.success,
             padding: SIZES.padding,
             borderRadius: SIZES.radius,
             alignItems: 'center',
@@ -122,13 +105,68 @@ const HomeScreen = () => {
           onPress={() => navigation.navigate('EmployerApplications')}
         >
           <Text style={{ color: COLORS.white, fontWeight: '600' }}>
-            View Applications
+            👥 View Applications
           </Text>
         </TouchableOpacity>
 
-        <Text style={{ color: COLORS.gray500, textAlign: 'center' }}>
-          Eventually, this will show your posted jobs and application stats.
+        {/* Posted Jobs List */}
+        <Text style={{ fontSize: SIZES.large, fontWeight: '600', marginBottom: SIZES.margin, color: COLORS.gray700 }}>
+          Your Posted Jobs
         </Text>
+        
+        {employerLoading ? (
+          <Text style={{ color: COLORS.gray500, textAlign: 'center' }}>Loading your jobs...</Text>
+        ) : employerError ? (
+          <Text style={{ color: COLORS.error, textAlign: 'center' }}>Error loading jobs</Text>
+        ) : employerJobs.length > 0 ? (
+          <FlatList
+            data={employerJobs}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: COLORS.white,
+                  padding: SIZES.padding,
+                  borderRadius: SIZES.radius,
+                  marginBottom: SIZES.margin,
+                  borderWidth: 1,
+                  borderColor: COLORS.gray300
+                }}
+                onPress={() => handleEditJob(item)}
+              >
+                <Text style={{ fontWeight: '600', fontSize: SIZES.medium, marginBottom: 5 }}>
+                  {item.title}
+                </Text>
+                <Text style={{ color: COLORS.gray600, marginBottom: 5 }}>
+                  {item.category} • {item.job_city}
+                </Text>
+                <Text style={{ 
+                  color: item.status === 'active' ? COLORS.success : 
+                         item.status === 'filled' ? COLORS.primary : 
+                         item.status === 'completed' ? COLORS.gray500 : COLORS.error,
+                  fontSize: SIZES.small
+                }}>
+                  Status: {item.status?.toUpperCase() || 'ACTIVE'}
+                </Text>
+                {item.hired_worker_id && (
+                  <Text style={{ color: COLORS.primary, fontSize: SIZES.small, marginTop: 5 }}>
+                    ✅ Hired worker
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+            refreshControl={
+              <RefreshControl
+                refreshing={employerLoading}
+                onRefresh={refetchEmployerJobs}
+              />
+            }
+          />
+        ) : (
+          <Text style={{ color: COLORS.gray500, textAlign: 'center', marginTop: SIZES.margin * 2 }}>
+            You haven't posted any jobs yet. Tap "Post New Job" to get started!
+          </Text>
+        )}
       </View>
     );
   }
@@ -160,24 +198,19 @@ const HomeScreen = () => {
         <Text style={{ fontSize: SIZES.xLarge, fontWeight: 'bold', color: COLORS.primary }}>cazzyjobs</Text>
         <View style={{ padding: 5, backgroundColor: COLORS.gray100, borderRadius: SIZES.radius }}>
           <Text style={{ color: COLORS.gray700, fontSize: SIZES.small }}>
-            {detectedCity ? `📍 ${detectedCity}` : '🌤️ 24°C'}
+            📍 {userCity}
           </Text>
         </View>
       </View>
 
-      {/* Search Bar */}
-      <View style={{ 
-        backgroundColor: COLORS.gray100, 
-        padding: SIZES.padding,
-        borderRadius: SIZES.radius,
-        marginBottom: SIZES.margin 
-      }}>
-        <Text style={{ color: COLORS.gray500 }}>🔍 Search for gardening, cleaning, building jobs...</Text>
-      </View>
+      {/* Jobs in City Header */}
+      <Text style={{ fontSize: SIZES.large, fontWeight: '600', marginBottom: SIZES.margin, color: COLORS.gray700 }}>
+        {filteredJobs.length > 0 ? `Jobs in ${userCity}` : `No jobs in ${userCity}`}
+      </Text>
 
       {/* Jobs List */}
       <FlatList
-        data={jobs}
+        data={filteredJobs}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <JobCard 
@@ -193,7 +226,12 @@ const HomeScreen = () => {
         }
         ListEmptyComponent={
           <View style={{ alignItems: 'center', padding: 20 }}>
-            <Text style={{ color: COLORS.gray500 }}>No jobs found in your area</Text>
+            <Text style={{ color: COLORS.gray500, textAlign: 'center', marginBottom: 10 }}>
+              No jobs found in {userCity}
+            </Text>
+            <Text style={{ color: COLORS.gray400, fontSize: SIZES.small, textAlign: 'center' }}>
+              Check back later or try a different location
+            </Text>
           </View>
         }
       />
