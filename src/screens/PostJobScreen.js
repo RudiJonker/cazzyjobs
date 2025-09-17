@@ -89,14 +89,28 @@ const PostJobScreen = ({ navigation }) => {
           proposed_wage: parseFloat(formData.proposed_wage),
           job_city: formData.job_city,
           full_address: formData.full_address,
-          job_date: formData.job_date?.toISOString().split('T')[0], // Format as YYYY-MM-DD
-          start_time: formData.start_time?.toTimeString().split(' ')[0], // Format as HH:MM:SS
-          end_time: formData.end_time?.toTimeString().split(' ')[0], // Format as HH:MM:SS
+          job_date: formData.job_date?.toISOString().split('T')[0],
+          start_time: formData.start_time?.toTimeString().split(' ')[0],
+          end_time: formData.end_time?.toTimeString().split(' ')[0],
           estimated_hours: parseFloat(formData.estimated_hours),
           status: 'active'
         });
 
       if (error) throw error;
+
+      // CLEAR FORM DATA AFTER SUCCESSFUL SUBMISSION
+      setFormData({
+        title: '',
+        category: '',
+        description: '',
+        proposed_wage: '',
+        job_city: userCity, // Keep city but clear other fields
+        full_address: '',
+        job_date: null,
+        start_time: null,
+        end_time: null,
+        estimated_hours: 0
+      });
 
       Alert.alert(
         'Success!', 

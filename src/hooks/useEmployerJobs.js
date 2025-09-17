@@ -40,6 +40,7 @@ export const useEmployerJobs = () => {
     }
   };
 
+  // Simplified: Only fetch on mount, no real-time for now
   useEffect(() => {
     if (user) {
       fetchEmployerJobs();

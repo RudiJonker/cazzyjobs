@@ -1,7 +1,7 @@
 // src/screens/HomeScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // ADD useCallback
 import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import JobCard from '../components/JobCard';
@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const [userCity, setUserCity] = useState('Loading...');
   const { jobs, loading, error, refetch } = useJobs();
   const { jobs: employerJobs, loading: employerLoading, error: employerError, refetch: refetchEmployerJobs } = useEmployerJobs();
@@ -50,6 +51,15 @@ const HomeScreen = () => {
     fetchUserData();
   }, [user]);
 
+  // Create a stable refetch function with useCallback
+  const handleRefetchEmployerJobs = useCallback(async () => {
+    if (userRole === 'employer') {
+      console.log('Refetching employer jobs...');
+      await refetchEmployerJobs();
+    }
+  }, [userRole, refetchEmployerJobs]);
+
+ 
   // Filter jobs by user's city
   useEffect(() => {
     if (jobs && userCity && userCity !== 'Loading...' && userCity !== 'Your area') {
@@ -93,7 +103,6 @@ const HomeScreen = () => {
 
         <Text style={globalStyles.screenHeader}>Your Dashboard</Text>
         
-       
         <TouchableOpacity
           style={{
             backgroundColor: COLORS.success,
@@ -158,13 +167,13 @@ const HomeScreen = () => {
             refreshControl={
               <RefreshControl
                 refreshing={employerLoading}
-                onRefresh={refetchEmployerJobs}
+      onRefresh={refetchEmployerJobs}
               />
             }
           />
         ) : (
           <Text style={{ color: COLORS.gray500, textAlign: 'center', marginTop: SIZES.margin * 2 }}>
-            You haven't posted any jobs yet. Tap "Post New Job" to get started!
+            You haven't posted any jobs yet.
           </Text>
         )}
       </View>
