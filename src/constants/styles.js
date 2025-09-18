@@ -21,5 +21,33 @@ export const globalStyles = StyleSheet.create({
     color: COLORS.gray700,
     lineHeight: SIZES.large, // Better readability for paragraphs
   },
-  // We will add more global styles as we build the app
+  
+  // ADD THESE MISSING STYLES:
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.gray500,
+    borderRadius: SIZES.radius,
+    padding: SIZES.padding,
+    marginBottom: SIZES.margin,
+    fontSize: SIZES.medium,
+    backgroundColor: COLORS.white,
+  },
+  label: {
+    color: COLORS.gray700,
+    marginBottom: 5,
+    fontWeight: '500',
+    fontSize: SIZES.medium,
+  },
+  button: {
+    backgroundColor: COLORS.primary,
+    padding: SIZES.padding,
+    borderRadius: SIZES.radius,
+    alignItems: 'center',
+    marginBottom: SIZES.padding * 2,
+  },
+  buttonText: {
+    color: COLORS.white,
+    fontSize: SIZES.large,
+    fontWeight: '600',
+  },
 });
