@@ -8,12 +8,13 @@ const PhoneInput = ({ value, onChangePhone, defaultCode = 'ZA' }) => {
   const phoneInput = useRef(null);
   const [valid, setValid] = useState(true);
   const [localNumber, setLocalNumber] = useState('');
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [previousValue, setPreviousValue] = useState('');
 
-  // Extract local number from international format - ONLY ONCE
+  // Handle both initialization and value changes properly
   useEffect(() => {
-    if (value && !isInitialized) {
-      console.log('Initial phone value from props:', value);
+    // Only process if we have a new value
+    if (value && value !== previousValue) {
+      console.log('New phone value from props:', value);
       
       let extractedLocal = '';
       if (value.startsWith('+27')) {
@@ -32,9 +33,21 @@ const PhoneInput = ({ value, onChangePhone, defaultCode = 'ZA' }) => {
       }
       
       setLocalNumber(extractedLocal);
-      setIsInitialized(true);
+      setPreviousValue(value);
+      
+      // Update the phone input with the new value
+      if (phoneInput.current && extractedLocal) {
+        // Use setTimeout to ensure the component is rendered first
+        setTimeout(() => {
+          try {
+            phoneInput.current?.setState({ number: extractedLocal });
+          } catch (error) {
+            console.log('Error updating phone input:', error);
+          }
+        }, 100);
+      }
     }
-  }, [value, isInitialized]);
+  }, [value, previousValue]);
 
   const handleChange = (formattedValue) => {
     console.log('Formatted value from library:', formattedValue);
@@ -48,7 +61,7 @@ const PhoneInput = ({ value, onChangePhone, defaultCode = 'ZA' }) => {
       <Text style={{ color: COLORS.gray700, marginBottom: 5 }}>Phone Number</Text>
       <RNPhoneInput
         ref={phoneInput}
-        defaultValue={localNumber} // Pass ONLY the local part
+        defaultValue={localNumber} // Pass the local part
         defaultCode={defaultCode}
         layout="first"
         onChangeFormattedText={handleChange}
