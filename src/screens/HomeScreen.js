@@ -1,7 +1,7 @@
 // src/screens/HomeScreen.js
-import React, { useState, useEffect, useCallback } from 'react'; // ADD useCallback
+import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import JobCard from '../components/JobCard';
@@ -10,9 +10,8 @@ import { useEmployerJobs } from '../hooks/useEmployerJobs';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 
-const HomeScreen = () => {
+const HomeScreen = ({ route }) => {
   const navigation = useNavigation();
-  const isFocused = useIsFocused();
   const [userCity, setUserCity] = useState('Loading...');
   const { jobs, loading, error, refetch } = useJobs();
   const { jobs: employerJobs, loading: employerLoading, error: employerError, refetch: refetchEmployerJobs } = useEmployerJobs();
@@ -20,6 +19,16 @@ const HomeScreen = () => {
   const [userRole, setUserRole] = useState(null);
   const [roleLoading, setRoleLoading] = useState(true);
   const [filteredJobs, setFilteredJobs] = useState([]);
+
+  // Check for refresh parameter from PostJobScreen
+  useEffect(() => {
+    if (route.params?.shouldRefreshJobs) {
+      console.log('Refreshing employer jobs after job post...');
+      refetchEmployerJobs();
+      // Clear the parameter to prevent endless refreshes
+      navigation.setParams({ shouldRefreshJobs: false });
+    }
+  }, [route.params, refetchEmployerJobs, navigation]);
 
   // Fetch user role and city from profile
   useEffect(() => {
@@ -51,15 +60,6 @@ const HomeScreen = () => {
     fetchUserData();
   }, [user]);
 
-  // Create a stable refetch function with useCallback
-  const handleRefetchEmployerJobs = useCallback(async () => {
-    if (userRole === 'employer') {
-      console.log('Refetching employer jobs...');
-      await refetchEmployerJobs();
-    }
-  }, [userRole, refetchEmployerJobs]);
-
- 
   // Filter jobs by user's city
   useEffect(() => {
     if (jobs && userCity && userCity !== 'Loading...' && userCity !== 'Your area') {
@@ -67,7 +67,6 @@ const HomeScreen = () => {
         job.job_city && job.job_city.toLowerCase() === userCity.toLowerCase()
       );
       setFilteredJobs(jobsInCity);
-      console.log(`Filtered ${jobsInCity.length} jobs in ${userCity}`);
     } else {
       setFilteredJobs(jobs || []);
     }
@@ -167,7 +166,7 @@ const HomeScreen = () => {
             refreshControl={
               <RefreshControl
                 refreshing={employerLoading}
-      onRefresh={refetchEmployerJobs}
+                onRefresh={refetchEmployerJobs}
               />
             }
           />

@@ -104,7 +104,7 @@ const PostJobScreen = ({ navigation }) => {
         category: '',
         description: '',
         proposed_wage: '',
-        job_city: userCity, // Keep city but clear other fields
+        job_city: userCity,
         full_address: '',
         job_date: null,
         start_time: null,
@@ -112,16 +112,8 @@ const PostJobScreen = ({ navigation }) => {
         estimated_hours: 0
       });
 
-      Alert.alert(
-        'Success!', 
-        'Job posted successfully!',
-        [
-          { 
-            text: 'OK', 
-            onPress: () => navigation.navigate('Home') 
-          }
-        ]
-      );
+      // NAVIGATE BACK TO HOME WITH REFRESH FLAG
+      navigation.navigate('Home', { shouldRefreshJobs: true });
       
     } catch (error) {
       console.error('Error posting job:', error);
