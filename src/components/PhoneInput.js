@@ -1,3 +1,4 @@
+// src/components/PhoneInput.js
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text } from 'react-native';
 import RNPhoneInput from 'react-native-phone-number-input';
@@ -7,12 +8,12 @@ const PhoneInput = ({ value, onChangePhone, defaultCode = 'ZA' }) => {
   const phoneInput = useRef(null);
   const [valid, setValid] = useState(true);
   const [localNumber, setLocalNumber] = useState('');
-  const [componentKey, setComponentKey] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Extract local number from international format and force re-render
+  // Extract local number from international format - ONLY ONCE
   useEffect(() => {
-    if (value) {
-      console.log('Raw phone value from props:', value);
+    if (value && !isInitialized) {
+      console.log('Initial phone value from props:', value);
       
       let extractedLocal = '';
       if (value.startsWith('+27')) {
@@ -31,10 +32,9 @@ const PhoneInput = ({ value, onChangePhone, defaultCode = 'ZA' }) => {
       }
       
       setLocalNumber(extractedLocal);
-      // Force re-render by changing the key
-      setComponentKey(prev => prev + 1);
+      setIsInitialized(true);
     }
-  }, [value]);
+  }, [value, isInitialized]);
 
   const handleChange = (formattedValue) => {
     console.log('Formatted value from library:', formattedValue);
@@ -47,7 +47,6 @@ const PhoneInput = ({ value, onChangePhone, defaultCode = 'ZA' }) => {
     <View style={{ marginBottom: SIZES.margin }}>
       <Text style={{ color: COLORS.gray700, marginBottom: 5 }}>Phone Number</Text>
       <RNPhoneInput
-        key={componentKey} // Force re-render when key changes
         ref={phoneInput}
         defaultValue={localNumber} // Pass ONLY the local part
         defaultCode={defaultCode}
