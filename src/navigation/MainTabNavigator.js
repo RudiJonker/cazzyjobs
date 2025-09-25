@@ -12,6 +12,7 @@ import SearchScreen from '../screens/SearchScreen';
 import PostJobScreen from '../screens/PostJobScreen';
 import MessagesListScreen from '../screens/MessagesListScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import WorkerApplicationsScreen from '../screens/WorkerApplicationsScreen'; // We'll create this
 
 const Tab = createBottomTabNavigator();
 
@@ -60,6 +61,20 @@ const ShareScreen = () => {
       >
         <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>Share App</Text>
       </TouchableOpacity>
+    </View>
+  );
+};
+
+// Placeholder screen for employers (we can repurpose this later)
+const EmployerToolsScreen = () => {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+      <Text style={{ fontSize: 18, textAlign: 'center', color: COLORS.gray700 }}>
+        Employer tools coming soon!
+      </Text>
+      <Text style={{ fontSize: 14, textAlign: 'center', color: COLORS.gray500, marginTop: 10 }}>
+        This space will contain employer-specific features in future updates.
+      </Text>
     </View>
   );
 };
@@ -117,11 +132,12 @@ export default function MainTabNavigator() {
           let iconName;
 
           if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
-          else if (route.name === 'Search') iconName = focused ? 'search' : 'search-outline';
-          else if (route.name === 'Post') iconName = focused ? 'add-circle' : 'add-circle-outline';
+          else if (route.name === 'My Jobs') iconName = focused ? 'briefcase' : 'briefcase-outline';
+          else if (route.name === 'Post Job') iconName = focused ? 'add-circle' : 'add-circle-outline';
           else if (route.name === 'Messages') iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
           else if (route.name === 'Share') iconName = focused ? 'share-social' : 'share-social-outline';
+          else if (route.name === 'Employer Tools') iconName = focused ? 'business' : 'business-outline';
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -136,25 +152,75 @@ export default function MainTabNavigator() {
       
       {/* ROLE-BASED TABS */}
       {userRole === 'worker' && (
-        <Tab.Screen name="Search" component={SearchScreen} options={{ title: 'Search Jobs' }} />
+        <Tab.Screen 
+          name="My Jobs" 
+          component={WorkerApplicationsScreen} 
+          options={{ 
+            title: 'My Jobs',
+            tabBarIcon: ({ focused, color, size }) => (
+              <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={size} color={color} />
+            )
+          }} 
+        />
       )}
       
       {userRole === 'employer' && (
-        <Tab.Screen name="Post" component={PostJobScreen} options={{ title: 'Post Job' }} />
+        <>
+          <Tab.Screen 
+            name="Post Job" 
+            component={PostJobScreen} 
+            options={{ 
+              title: 'Post Job',
+              tabBarIcon: ({ focused, color, size }) => (
+                <Ionicons name={focused ? 'add-circle' : 'add-circle-outline'} size={size} color={color} />
+              )
+            }} 
+          />
+          <Tab.Screen 
+            name="Employer Tools" 
+            component={EmployerToolsScreen} 
+            options={{ 
+              title: 'Tools',
+              tabBarIcon: ({ focused, color, size }) => (
+                <Ionicons name={focused ? 'business' : 'business-outline'} size={size} color={color} />
+              )
+            }} 
+          />
+        </>
       )}
       
-      <Tab.Screen name="Messages" component={MessagesListScreen} options={{ title: 'Messages' }} />
+      <Tab.Screen 
+        name="Messages" 
+        component={MessagesListScreen} 
+        options={{ 
+          title: 'Messages',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={size} color={color} />
+          )
+        }} 
+      />
       
-      {/* NEW SHARE TAB */}
       <Tab.Screen 
         name="Share" 
         component={ShareScreen} 
         options={{ 
           title: 'Share',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons name={focused ? 'share-social' : 'share-social-outline'} size={size} color={color} />
+          )
         }} 
       />
       
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen} 
+        options={{ 
+          title: 'Profile',
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
+          )
+        }} 
+      />
     </Tab.Navigator>
   );
 }

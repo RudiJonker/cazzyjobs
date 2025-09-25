@@ -28,7 +28,9 @@ export const useJobs = () => {
         .select('*')
         .eq('job_city', userCity) // ← CRITICAL: Filter by user's city
         .eq('status', 'active')   // ← Only show active jobs
+        .is('hired_worker_id', null)
         .order('created_at', { ascending: false });
+        
 
       if (supabaseError) {
         throw supabaseError;

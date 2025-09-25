@@ -29,7 +29,6 @@ const JobDetailScreen = ({ route, navigation }) => {
       weekday: 'long',
       day: 'numeric',
       month: 'long'
-      // Year removed to save space
     });
   };
 
@@ -90,17 +89,17 @@ const JobDetailScreen = ({ route, navigation }) => {
 
   return (
     <ScrollView style={globalStyles.container}>
-      {/* Ad Banner - ENHANCED STYLING */}
+      {/* Ad Banner */}
       <View style={{
         backgroundColor: '#f0f0f0',
-        padding: SIZES.padding * 1.5, // Increased padding for height
+        padding: SIZES.padding * 1.5,
         borderRadius: SIZES.radius,
         marginBottom: SIZES.margin,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: COLORS.gray300,
-        borderStyle: 'dashed', // Dotted line border
-        minHeight: 80, // Increased height
+        borderStyle: 'dashed',
+        minHeight: 80,
         justifyContent: 'center'
       }}>
         <Text style={{ color: COLORS.gray500, fontWeight: '600', fontSize: SIZES.medium }}>
@@ -184,16 +183,30 @@ const JobDetailScreen = ({ route, navigation }) => {
         <Text style={{ color: COLORS.gray700, lineHeight: 20 }}>{description}</Text>
       </View>
 
-      {/* Apply Button */}
-      <TouchableOpacity
-        style={{ backgroundColor: COLORS.primary, padding: SIZES.padding, borderRadius: SIZES.radius, alignItems: 'center', marginBottom: SIZES.margin * 2, opacity: loading ? 0.6 : 1 }}
-        onPress={handleApply}
-        disabled={loading}
-      >
-        <Text style={{ color: COLORS.white, fontSize: SIZES.large, fontWeight: '600' }}>
-          {loading ? 'Applying...' : 'I\'m Interested!'}
-        </Text>
-      </TouchableOpacity>
+      {/* Apply Button - Only show if job is active and not hired */}
+      {job.status === 'active' && !job.hired_worker_id && (
+        <TouchableOpacity
+          style={{ backgroundColor: COLORS.primary, padding: SIZES.padding, borderRadius: SIZES.radius, alignItems: 'center', marginBottom: SIZES.margin * 2, opacity: loading ? 0.6 : 1 }}
+          onPress={handleApply}
+          disabled={loading}
+        >
+          <Text style={{ color: COLORS.white, fontSize: SIZES.large, fontWeight: '600' }}>
+            {loading ? 'Applying...' : 'I\'m Interested!'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Job Status Info */}
+      {job.status !== 'active' && (
+        <View style={{ backgroundColor: COLORS.gray100, padding: SIZES.padding, borderRadius: SIZES.radius, marginBottom: SIZES.margin * 2 }}>
+          <Text style={{ fontSize: SIZES.large, fontWeight: '600', marginBottom: 10, color: COLORS.gray900 }}>
+            Job Status
+          </Text>
+          <Text style={{ color: COLORS.gray700 }}>
+            This job is {job.status}. {job.hired_worker_id ? 'A worker has been hired for this position.' : 'It is no longer accepting applications.'}
+          </Text>
+        </View>
+      )}
 
       {/* Employer Info */}
       <View style={{ backgroundColor: COLORS.gray100, padding: SIZES.padding, borderRadius: SIZES.radius }}>
