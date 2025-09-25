@@ -10,6 +10,7 @@ CAZZYJOBS/
 │   ├── hooks/
 │   │   ├── useApplications.js
 │   │   ├── useAuth.js
+│   │   ├── useEmployerJobs.js
 │   │   ├── useJobs.js
 │   │   └── useNotifications.js
 │   ├── lib/
@@ -30,6 +31,7 @@ CAZZYJOBS/
 │   │   ├── ProfileScreen.js
 │   │   ├── SearchScreen.js
 │   │   ├── SignUpScreen.js
+│   │   ├── TermsAcceptanceScreen.js
 │   │   └── WelcomeScreen.js
 │   └── utils/
 │       └── location.js

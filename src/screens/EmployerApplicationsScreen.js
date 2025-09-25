@@ -39,7 +39,7 @@ const EmployerApplicationsScreen = () => {
       // Extract just the job IDs for the next query
       const jobIds = employerJobs.map(job => job.id);
 
-      // Now fetch applications for these job IDs
+      // Fetch applications (excluding rejected ones and cancelled jobs)
       const { data: applicationsData, error: applicationsError } = await supabase
         .from('applications')
         .select(`
@@ -48,16 +48,23 @@ const EmployerApplicationsScreen = () => {
           created_at,
           hired_at,
           worker_id,
-          jobs:job_id (title, proposed_wage, category),
+          job_id,
+          jobs:job_id (title, proposed_wage, category, status),
           workers:worker_id (email, full_name)
         `)
         .in('job_id', jobIds)
+        .neq('status', 'rejected')  // Hide rejected applications
         .order('created_at', { ascending: false });
 
       if (applicationsError) throw applicationsError;
 
-      console.log("Applications fetched:", applicationsData);
-      setApplications(applicationsData || []);
+      // FILTER OUT CANCELLED JOBS HERE
+      const filteredApplications = applicationsData ? applicationsData.filter(app => 
+        app.jobs?.status !== 'cancelled'
+      ) : [];
+
+      console.log("Filtered applications:", filteredApplications);
+      setApplications(filteredApplications);
       
     } catch (err) {
       console.error('Error fetching applications:', err);
@@ -71,84 +78,121 @@ const EmployerApplicationsScreen = () => {
     fetchApplications();
   }, []);
 
-  const handleHireWorker = async (applicationId, workerId, jobTitle) => {
-    try {
-      console.log("Hiring worker:", workerId, "for application:", applicationId);
-      
-      // 1. Update application status to 'hired'
-      const { error: updateError } = await supabase
-        .from('applications')
-        .update({ 
-          status: 'hired',
-          hired_at: new Date().toISOString()
-        })
-        .eq('id', applicationId);
+  const handleHireWorker = async (applicationId, workerId, jobTitle, jobId) => {
+    // ADD CONFIRMATION DIALOG
+    Alert.alert(
+      'Confirm Hire',
+      `Are you sure you want to hire this worker for "${jobTitle}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Yes, Hire', 
+          onPress: async () => {
+            try {
+              console.log("Hiring worker:", workerId, "for application:", applicationId);
+              
+              // 1. Update application status to 'hired'
+              const { error: updateError } = await supabase
+                .from('applications')
+                .update({ 
+                  status: 'hired',
+                  hired_at: new Date().toISOString()
+                })
+                .eq('id', applicationId);
 
-      if (updateError) throw updateError;
+              if (updateError) throw updateError;
 
-      // 2. CREATE NOTIFICATION FOR THE WORKER
-      const { error: notifError } = await supabase.rpc('create_notification', {
-        p_user_id: workerId,
-        p_title: 'You were hired! 🎉',
-        p_body: `You got the job: "${jobTitle}". Check your messages to chat with the employer.`,
-        p_type: 'hired',
-        p_related_id: applicationId
-      });
+              // 2. UPDATE THE JOB WITH hired_worker_id (CRITICAL FIX!)
+              const { error: jobUpdateError } = await supabase
+                .from('jobs')
+                .update({ 
+                  hired_worker_id: workerId,
+                  hired_at: new Date().toISOString()
+                })
+                .eq('id', jobId);
 
-      if (notifError) throw notifError;
+              if (jobUpdateError) throw jobUpdateError;
 
-      // 3. CREATE THE FIRST AUTO-MESSAGE IN THE CHAT
-      // Get the employer's name for the message
-      const { data: { user: employer } } = await supabase.auth.getUser();
-      const { data: employerProfile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', employer.id)
-        .single();
+              // 3. CREATE NOTIFICATION FOR THE WORKER
+              const { error: notifError } = await supabase.rpc('create_notification', {
+                p_user_id: workerId,
+                p_title: 'You were hired! 🎉',
+                p_body: `You got the job: "${jobTitle}". Check your messages to chat with the employer.`,
+                p_type: 'hired',
+                p_related_id: applicationId
+              });
 
-      const employerName = employerProfile?.full_name || 'The employer';
+              if (notifError) throw notifError;
 
-      const { error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          application_id: applicationId,
-          sender_id: employer.id, // The employer "sends" this auto-message
-          content: `🎉 You have been hired by ${employerName} for the job "${jobTitle}"! You can now chat here to arrange the details.`, 
-          read: false
-        });
+              // 4. CREATE THE FIRST AUTO-MESSAGE IN THE CHAT
+              // Get the employer's name for the message
+              const { data: { user: employer } } = await supabase.auth.getUser();
+              const { data: employerProfile } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('id', employer.id)
+                .single();
 
-      if (messageError) throw messageError;
+              const employerName = employerProfile?.full_name || 'The employer';
 
-      // 4. Show success message
-      Alert.alert(
-        'Hired!', 
-        `You've hired the worker for "${jobTitle}". They have been notified and a chat has been opened.`,
-        [{ text: 'OK', onPress: () => fetchApplications() }]
-      );
-      
-    } catch (err) {
-      console.error('Error hiring worker:', err);
-      Alert.alert('Error', 'Failed to hire worker: ' + err.message);
-    }
+              const { error: messageError } = await supabase
+                .from('messages')
+                .insert({
+                  application_id: applicationId,
+                  sender_id: employer.id, // The employer "sends" this auto-message
+                  content: `🎉 You have been hired by ${employerName} for the job "${jobTitle}"! You can now chat here to arrange the details.`, 
+                  read: false
+                });
+
+              if (messageError) throw messageError;
+
+              // 5. Show success message
+              Alert.alert(
+                'Hired!', 
+                `You've hired the worker for "${jobTitle}". They have been notified and a chat has been opened.`,
+                [{ text: 'OK', onPress: () => fetchApplications() }]
+              );
+              
+            } catch (err) {
+              console.error('Error hiring worker:', err);
+              Alert.alert('Error', 'Failed to hire worker: ' + err.message);
+            }
+          }
+        }
+      ]
+    );
   };
 
-  const handleRejectWorker = async (applicationId) => {
-    try {
-      const { error: updateError } = await supabase
-        .from('applications')
-        .update({ status: 'rejected' })
-        .eq('id', applicationId);
+  const handleRejectWorker = async (applicationId, workerName, jobTitle) => {
+    Alert.alert(
+      'Reject Application',
+      `Are you sure you want to reject ${workerName}'s application for "${jobTitle}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Yes, Reject', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error: updateError } = await supabase
+                .from('applications')
+                .update({ status: 'rejected' })
+                .eq('id', applicationId);
 
-      if (updateError) throw updateError;
+              if (updateError) throw updateError;
 
-      // Refresh the list
-      fetchApplications();
-      Alert.alert('Application rejected');
-      
-    } catch (err) {
-      console.error('Error rejecting application:', err);
-      Alert.alert('Error', 'Failed to reject application: ' + err.message);
-    }
+              // Refresh the list
+              fetchApplications();
+              Alert.alert('Application rejected');
+              
+            } catch (err) {
+              console.error('Error rejecting application:', err);
+              Alert.alert('Error', 'Failed to reject application: ' + err.message);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const renderApplication = ({ item }) => {
@@ -157,6 +201,7 @@ const EmployerApplicationsScreen = () => {
     const jobTitle = item.jobs?.title || 'Unknown Job';
     const jobWage = item.jobs?.proposed_wage || 0;
     const jobCategory = item.jobs?.category || 'Unknown';
+    const jobId = item.job_id;
 
     return (
       <View style={{
@@ -193,13 +238,13 @@ const EmployerApplicationsScreen = () => {
             <View style={{ flexDirection: 'row' }}>
               <TouchableOpacity
                 style={{ backgroundColor: COLORS.success, padding: 8, borderRadius: 5, marginRight: 5 }}
-                onPress={() => handleHireWorker(item.id, item.worker_id, jobTitle)}
+                onPress={() => handleHireWorker(item.id, item.worker_id, jobTitle, jobId)}
               >
                 <Text style={{ color: COLORS.white, fontSize: SIZES.small }}>Hire</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{ backgroundColor: COLORS.error, padding: 8, borderRadius: 5 }}
-                onPress={() => handleRejectWorker(item.id)}
+                onPress={() => handleRejectWorker(item.id, workerName, jobTitle)}
               >
                 <Text style={{ color: COLORS.white, fontSize: SIZES.small }}>Reject</Text>
               </TouchableOpacity>
@@ -221,10 +266,12 @@ const EmployerApplicationsScreen = () => {
   if (error) {
     return (
       <View style={[globalStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text>Error: {error}</Text>
-        <TouchableOpacity onPress={fetchApplications} style={{ marginTop: 10 }}>
-          <Text style={{ color: COLORS.primary }}>Try Again</Text>
-        </TouchableOpacity>
+        <View>
+          <Text>Error: {error}</Text>
+          <TouchableOpacity onPress={fetchApplications} style={{ marginTop: 10 }}>
+            <Text style={{ color: COLORS.primary }}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
