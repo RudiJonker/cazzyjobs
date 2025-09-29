@@ -1,0 +1,56 @@
+import React from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigationContainer } from '@react-navigation/native';
+
+// Import Screens
+import WelcomeScreen from '../screens/WelcomeScreen';
+import LoginScreen from '../screens/LoginScreen';
+import SignUpScreen from '../screens/SignUpScreen';
+import MainTabNavigator from './MainTabNavigator';
+import JobDetailScreen from '../screens/JobDetailScreen';
+import EmployerApplicationsScreen from '../screens/EmployerApplicationsScreen';
+import PostJobScreen from '../screens/PostJobScreen';
+import ChatScreen from '../screens/ChatScreen';
+import MessagesListScreen from '../screens/MessagesListScreen'; // ADD THIS IMPORT
+
+const Stack = createNativeStackNavigator();
+
+export default function AppNavigator() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator 
+        initialRouteName="Welcome" 
+        screenOptions={{ 
+          headerShown: false,
+          animation: 'slide_from_right'
+        }}
+      >
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="SignUp" component={SignUpScreen} />
+        <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+        <Stack.Screen name="JobDetail" component={JobDetailScreen} 
+          options={{ headerShown: true, title: 'Job Details', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen name="EmployerApplications" component={EmployerApplicationsScreen} 
+          options={{ headerShown: true, title: 'Your Applications', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen name="PostJob" component={PostJobScreen} 
+          options={{ headerShown: true, title: 'Post a New Job', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen name="Chat" component={ChatScreen} 
+          options={{ headerShown: true, title: 'Chat', headerBackTitle: 'Back' }}
+        />
+        {/* ADD THIS NEW SCREEN FOR MESSAGES OUTSIDE OF TABS */}
+        <Stack.Screen name="MessagesStack" component={MessagesListScreen} 
+          options={{ 
+            headerShown: true, 
+            title: 'Messages', 
+            headerBackTitle: 'Back',
+            headerBackVisible: true 
+          }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}

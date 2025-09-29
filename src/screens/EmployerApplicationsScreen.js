@@ -4,11 +4,14 @@ import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'r
 import { globalStyles } from '../constants/styles';
 import { COLORS, SIZES } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+import ApplicationDetailModal from '../components/ApplicationDetailModal';
 
 const EmployerApplicationsScreen = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const fetchApplications = async () => {
     try {
@@ -49,8 +52,8 @@ const EmployerApplicationsScreen = () => {
           hired_at,
           worker_id,
           job_id,
-          jobs:job_id (title, proposed_wage, category, status),
-          workers:worker_id (email, full_name)
+          jobs:job_id (title, proposed_wage, category, status, job_city, description, job_date, start_time, end_time),
+          workers:worker_id (id, email, full_name, city, bio, avatar_url)
         `)
         .in('job_id', jobIds)
         .neq('status', 'rejected')  // Hide rejected applications
@@ -78,8 +81,12 @@ const EmployerApplicationsScreen = () => {
     fetchApplications();
   }, []);
 
+  const handleApplicationPress = (application) => {
+    setSelectedApplication(application);
+    setModalVisible(true);
+  };
+
   const handleHireWorker = async (applicationId, workerId, jobTitle, jobId) => {
-    // ADD CONFIRMATION DIALOG
     Alert.alert(
       'Confirm Hire',
       `Are you sure you want to hire this worker for "${jobTitle}"?`,
@@ -102,7 +109,7 @@ const EmployerApplicationsScreen = () => {
 
               if (updateError) throw updateError;
 
-              // 2. UPDATE THE JOB WITH hired_worker_id (CRITICAL FIX!)
+              // 2. UPDATE THE JOB WITH hired_worker_id
               const { error: jobUpdateError } = await supabase
                 .from('jobs')
                 .update({ 
@@ -125,7 +132,6 @@ const EmployerApplicationsScreen = () => {
               if (notifError) throw notifError;
 
               // 4. CREATE THE FIRST AUTO-MESSAGE IN THE CHAT
-              // Get the employer's name for the message
               const { data: { user: employer } } = await supabase.auth.getUser();
               const { data: employerProfile } = await supabase
                 .from('profiles')
@@ -139,18 +145,21 @@ const EmployerApplicationsScreen = () => {
                 .from('messages')
                 .insert({
                   application_id: applicationId,
-                  sender_id: employer.id, // The employer "sends" this auto-message
+                  sender_id: employer.id,
                   content: `🎉 You have been hired by ${employerName} for the job "${jobTitle}"! You can now chat here to arrange the details.`, 
                   read: false
                 });
 
               if (messageError) throw messageError;
 
-              // 5. Show success message
+              // 5. Show success message and refresh
               Alert.alert(
                 'Hired!', 
                 `You've hired the worker for "${jobTitle}". They have been notified and a chat has been opened.`,
-                [{ text: 'OK', onPress: () => fetchApplications() }]
+                [{ text: 'OK', onPress: () => {
+                  fetchApplications();
+                  setModalVisible(false);
+                }}]
               );
               
             } catch (err) {
@@ -181,8 +190,9 @@ const EmployerApplicationsScreen = () => {
 
               if (updateError) throw updateError;
 
-              // Refresh the list
+              // Refresh the list and close modal
               fetchApplications();
+              setModalVisible(false);
               Alert.alert('Application rejected');
               
             } catch (err) {
@@ -196,7 +206,6 @@ const EmployerApplicationsScreen = () => {
   };
 
   const renderApplication = ({ item }) => {
-    // Safe access to nested data
     const workerName = item.workers?.full_name || item.workers?.email || 'Unknown User';
     const jobTitle = item.jobs?.title || 'Unknown Job';
     const jobWage = item.jobs?.proposed_wage || 0;
@@ -204,14 +213,17 @@ const EmployerApplicationsScreen = () => {
     const jobId = item.job_id;
 
     return (
-      <View style={{
-        backgroundColor: COLORS.white,
-        padding: SIZES.padding,
-        borderRadius: SIZES.radius,
-        marginBottom: SIZES.margin,
-        borderWidth: 1,
-        borderColor: COLORS.gray100
-      }}>
+      <TouchableOpacity
+        onPress={() => handleApplicationPress(item)}
+        style={{
+          backgroundColor: COLORS.white,
+          padding: SIZES.padding,
+          borderRadius: SIZES.radius,
+          marginBottom: SIZES.margin,
+          borderWidth: 1,
+          borderColor: COLORS.gray100
+        }}
+      >
         <Text style={{ fontSize: SIZES.large, fontWeight: 'bold', marginBottom: 5, color: COLORS.gray900 }}>
           {jobTitle}
         </Text>
@@ -238,20 +250,26 @@ const EmployerApplicationsScreen = () => {
             <View style={{ flexDirection: 'row' }}>
               <TouchableOpacity
                 style={{ backgroundColor: COLORS.success, padding: 8, borderRadius: 5, marginRight: 5 }}
-                onPress={() => handleHireWorker(item.id, item.worker_id, jobTitle, jobId)}
+                onPress={(e) => {
+                  e.stopPropagation(); // Prevent card press
+                  handleHireWorker(item.id, item.worker_id, jobTitle, jobId);
+                }}
               >
                 <Text style={{ color: COLORS.white, fontSize: SIZES.small }}>Hire</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{ backgroundColor: COLORS.error, padding: 8, borderRadius: 5 }}
-                onPress={() => handleRejectWorker(item.id, workerName, jobTitle)}
+                onPress={(e) => {
+                  e.stopPropagation(); // Prevent card press
+                  handleRejectWorker(item.id, workerName, jobTitle);
+                }}
               >
                 <Text style={{ color: COLORS.white, fontSize: SIZES.small }}>Reject</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -300,6 +318,19 @@ const EmployerApplicationsScreen = () => {
               Applications will appear here when workers apply to your jobs
             </Text>
           </View>
+        }
+      />
+
+      {/* Application Detail Modal */}
+      <ApplicationDetailModal
+        visible={modalVisible}
+        application={selectedApplication}
+        onClose={() => setModalVisible(false)}
+        onHire={(applicationId, workerId, jobTitle, jobId) => 
+          handleHireWorker(applicationId, workerId, jobTitle, jobId)
+        }
+        onReject={(applicationId, workerName, jobTitle) => 
+          handleRejectWorker(applicationId, workerName, jobTitle)
         }
       />
     </View>
