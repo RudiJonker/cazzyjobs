@@ -9,6 +9,8 @@ import { useJobs } from '../hooks/useJobs';
 import { useEmployerJobs } from '../hooks/useEmployerJobs';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
+import { useJobCompletion } from '../hooks/useJobCompletion';
+import JobCompletionModal from '../components/JobCompletionModal';
 
 const HomeScreen = ({ route }) => {
   const navigation = useNavigation();
@@ -21,6 +23,24 @@ const HomeScreen = ({ route }) => {
   const [roleLoading, setRoleLoading] = useState(true);
   const [filteredJobs, setFilteredJobs] = useState([]);
   const [hiredApplications, setHiredApplications] = useState({});
+  const { jobsNeedingCompletion, markAsNotified } = useJobCompletion();
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+
+  // Show completion modal when jobs need rating
+  useEffect(() => {
+   if (jobsNeedingCompletion.length > 0 && isFocused) {
+    setShowCompletionModal(true);
+  }
+  }, [jobsNeedingCompletion, isFocused]);
+
+  const handleRateJob = (job) => {
+  markAsNotified(job.id);
+  setShowCompletionModal(false);
+  navigation.navigate('Rating', { 
+    job: job,
+    worker: job.hired_worker 
+  });
+};
 
   // Check for refresh parameter from PostJobScreen
   useEffect(() => {
@@ -76,83 +96,95 @@ const HomeScreen = ({ route }) => {
 
   // Fetch hired applications for each job - UPDATED TO USE isFocused
   const fetchHiredApplications = async () => {
-    if (userRole === 'employer' && employerJobs.length > 0) {
-      try {
-        const jobIds = employerJobs.map(job => job.id);
-        const { data: applications, error } = await supabase
-          .from('applications')
-          .select('job_id, status')
-          .in('job_id', jobIds)
-          .eq('status', 'hired');
+  if (userRole !== 'employer') return;
+  
+  try {
+    // Always get fresh jobs data instead of relying on employerJobs state
+    const { data: currentJobs, error: jobsError } = await supabase
+      .from('jobs')
+      .select('id')
+      .eq('employer_id', user.id)
+      .eq('status', 'active');
 
-        if (!error) {
-          const hiredMap = {};
-          applications.forEach(app => {
-            hiredMap[app.job_id] = true;
-          });
-          setHiredApplications(hiredMap);
-          console.log('Hired applications updated:', hiredMap);
-        }
-      } catch (err) {
-        console.error('Error fetching hired applications:', err);
+    if (jobsError) throw jobsError;
+    if (!currentJobs || currentJobs.length === 0) {
+      setHiredApplications({});
+      return;
+    }
+
+    const jobIds = currentJobs.map(job => job.id);
+    const { data: applications, error } = await supabase
+      .from('applications')
+      .select('job_id, status')
+      .in('job_id', jobIds)
+      .eq('status', 'hired');
+
+    if (!error) {
+      const hiredMap = {};
+      applications.forEach(app => {
+        hiredMap[app.job_id] = true;
+      });
+      setHiredApplications(hiredMap);
+      
+      // Only log when there are changes
+      if (Object.keys(hiredMap).length > 0) {
+        console.log('✅ Hired status updated');
       }
     }
-  };
+  } catch (err) {
+    console.error('Error fetching hired applications:', err);
+  }
+};
 
   // Refresh hired applications when screen comes into focus
-  useEffect(() => {
-    if (isFocused && userRole === 'employer') {
-      console.log('Home screen focused - refreshing hired applications');
-      fetchHiredApplications();
-    }
-  }, [isFocused, userRole, employerJobs]);
+useEffect(() => {
+  if (isFocused && userRole === 'employer') {
+    console.log('Home screen focused - refreshing hired applications');
+    fetchHiredApplications();
+  }
+}, [isFocused, userRole, employerJobs]);
 
-  // Also refresh when employerJobs changes
-  useEffect(() => {
-    if (userRole === 'employer' && employerJobs.length > 0) {
-      fetchHiredApplications();
-    }
-  }, [employerJobs, userRole]);
+// Also refresh when employerJobs changes
+useEffect(() => {
+  if (userRole === 'employer' && employerJobs.length > 0) {
+    fetchHiredApplications();
+  }
+}, [employerJobs, userRole]);
+
+  // Ensure hired applications are always current
+useEffect(() => {
+  if (userRole === 'employer' && isFocused) {
+    fetchHiredApplications();
+  }
+}, [isFocused, userRole]);
 
   const handleJobPress = (job) => {
     navigation.navigate('JobDetail', { job });
   };
 
   const handleEditJob = (job) => {
-    navigation.navigate('PostJob', { job: job });
-  };
-
-  // NEW FUNCTION: Handle pre-hire cancellation
-  const handlePreHireCancel = async (jobId, jobTitle) => {
+  // Check if job has hired worker and prevent editing
+  if (hasHiredApplications(job.id)) {
     Alert.alert(
-      'Cancel Job',
-      `Are you sure you want to cancel "${jobTitle}"? Applicants will be notified.`,
-      [
-        { text: 'No', style: 'cancel' },
-        { 
-          text: 'Yes, Cancel', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('jobs')
-                .update({ status: 'cancelled' })
-                .eq('id', jobId);
-              
-              if (error) throw error;
-              
-              refetchEmployerJobs(); // Refresh the list
-              fetchHiredApplications(); // Refresh hired data
-              Alert.alert('Success', 'Job cancelled! Applicants have been notified.');
-            } catch (err) {
-              console.error('Error cancelling job:', err);
-              Alert.alert('Error', 'Failed to cancel job');
-            }
-          }
-        }
-      ]
+      'Cannot Edit Job',
+      'This job cannot be edited because a worker has already been hired.',
+      [{ text: 'OK' }]
     );
-  };
+    return;
+  }
+  
+  // Check if job is cancelled and prevent editing
+  if (job.status === 'cancelled') {
+    Alert.alert(
+      'Cannot Edit Job', 
+      'This job has been cancelled and cannot be edited.',
+      [{ text: 'OK' }]
+    );
+    return;
+  }
+
+  navigation.navigate('PostJob', { job: job });
+};
 
   // Helper function to check if job has hired applications
   const hasHiredApplications = (jobId) => {
@@ -167,6 +199,20 @@ const HomeScreen = ({ route }) => {
       </View>
     );
   }
+
+  // Check if a hired job is ready for completion
+const isJobReadyForCompletion = (job) => {
+  if (!job.job_date || !job.end_time || !hasHiredApplications(job.id)) {
+    return false;
+  }
+  
+  // Combine job date and end time
+  const jobEndDateTime = new Date(`${job.job_date}T${job.end_time}`);
+  const now = new Date();
+  
+  // Job has ended
+  return now > jobEndDateTime;
+};
 
   // EMPLOYER VIEW - Show dashboard with posted jobs
   if (userRole === 'employer') {
@@ -345,27 +391,29 @@ const HomeScreen = ({ route }) => {
                   📍 {item.job_city}
                 </Text>
                 
-                {/* Status Badge */}
-                <View style={{ 
-                  alignSelf: 'flex-start',
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                  borderRadius: 12,
-                  backgroundColor: 
-                    item.status === 'active' ? '#E8F5E8' : 
-                    item.status === 'completed' ? '#FFF3E0' : '#FFEBEE',
-                }}>
-                  <Text style={{ 
-                    fontSize: 10,
-                    fontWeight: '600',
-                    color: 
-                      item.status === 'active' ? '#2E7D32' : 
-                      item.status === 'completed' ? '#EF6C00' : '#C62828'
-                  }}>
-                    {item.status?.toUpperCase()}
-                    {hasHiredApplications(item.id) && item.status === 'active' ? ' • HIRED' : ''}
-                  </Text>
-                </View>
+                {/* Enhanced Status Badge */}
+<View style={{ 
+  alignSelf: 'flex-start',
+  paddingHorizontal: 6,
+  paddingVertical: 2,
+  borderRadius: 12,
+  backgroundColor: 
+    item.status === 'active' ? '#E8F5E8' : 
+    item.status === 'completed' ? '#FFF3E0' : '#FFEBEE',
+}}>
+  <Text style={{ 
+    fontSize: 10,
+    fontWeight: '600',
+    color: 
+      item.status === 'active' ? '#2E7D32' : 
+      item.status === 'completed' ? '#EF6C00' : '#C62828'
+  }}>
+    {item.status?.toUpperCase()}
+    {hasHiredApplications(item.id) && item.status === 'active' ? ' • HIRED' : ''}
+    {/* NEW: Show completion status for hired jobs that have ended */}
+    {hasHiredApplications(item.id) && item.status === 'active' && isJobReadyForCompletion(item) ? ' • READY TO COMPLETE' : ''}
+  </Text>
+</View>
               </TouchableOpacity>
             )}
             refreshControl={
@@ -395,6 +443,12 @@ const HomeScreen = ({ route }) => {
             </TouchableOpacity>
           </View>
         )}
+        <JobCompletionModal
+         visible={showCompletionModal}
+         jobs={jobsNeedingCompletion}
+         onRateJob={handleRateJob}
+         onClose={() => setShowCompletionModal(false)}
+/>
       </View>
     );
   }

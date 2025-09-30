@@ -42,13 +42,13 @@ const JobCompletionModal = ({ visible, jobs, onRateJob, onClose }) => {
               textAlign: 'center',
               marginTop: 5
             }}>
-              The following jobs have reached their scheduled end time
+              Please rate your workers to complete these jobs
             </Text>
           </View>
 
           {/* Jobs List */}
           <ScrollView style={{ maxHeight: 300 }}>
-            {jobs.map((job, index) => (
+            {jobs.map((job) => (
               <View 
                 key={job.id}
                 style={{

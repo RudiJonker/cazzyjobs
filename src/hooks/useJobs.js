@@ -1,4 +1,3 @@
-// src/hooks/useJobs.js
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { getCityFromDeviceLocation, getDefaultCity } from '../utils/location';
@@ -17,20 +16,16 @@ export const useJobs = () => {
       let userCity = await getCityFromDeviceLocation();
       if (!userCity) {
         userCity = getDefaultCity();
-        console.log("Using default city:", userCity);
       }
-
-      console.log("Fetching jobs for city:", userCity);
 
       // 2. Fetch jobs from Supabase filtered by city
       const { data: jobsData, error: supabaseError } = await supabase
         .from('jobs')
         .select('*')
-        .eq('job_city', userCity) // ← CRITICAL: Filter by user's city
-        .eq('status', 'active')   // ← Only show active jobs
+        .eq('job_city', userCity)
+        .eq('status', 'active')
         .is('hired_worker_id', null)
         .order('created_at', { ascending: false });
-        
 
       if (supabaseError) {
         throw supabaseError;
@@ -41,7 +36,7 @@ export const useJobs = () => {
     } catch (err) {
       console.error('Error fetching jobs:', err);
       setError(err.message);
-      setJobs([]); // Clear jobs on error
+      setJobs([]);
     } finally {
       setLoading(false);
     }

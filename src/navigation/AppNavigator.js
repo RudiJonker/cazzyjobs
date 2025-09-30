@@ -14,6 +14,7 @@ import EmployerApplicationsScreen from '../screens/EmployerApplicationsScreen';
 import PostJobScreen from '../screens/PostJobScreen';
 import ChatScreen from '../screens/ChatScreen';
 import MessagesListScreen from '../screens/MessagesListScreen';
+import RatingScreen from '../screens/RatingScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -57,6 +58,11 @@ export default function AppNavigator() {
             headerBackTitle: 'Back',
             headerBackVisible: true 
           }}
+        />
+        <Stack.Screen 
+          name="Rating" 
+          component={RatingScreen} 
+          options={{ title: 'Rate Worker' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
